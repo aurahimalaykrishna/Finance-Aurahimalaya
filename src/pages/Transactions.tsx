@@ -1,20 +1,22 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useTransactions, CreateTransactionData } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Edit, ArrowUpRight, ArrowDownRight, Search } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload } from 'lucide-react';
 import { format } from 'date-fns';
+import { ImportTransactionsDialog } from '@/components/transactions/ImportTransactionsDialog';
 
 export default function Transactions() {
-  const { transactions, isLoading, createTransaction, deleteTransaction } = useTransactions();
+  const { transactions, isLoading, createTransaction, deleteTransaction, createBulkTransactions } = useTransactions();
   const { categories } = useCategories();
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [formData, setFormData] = useState<CreateTransactionData>({
@@ -24,6 +26,16 @@ export default function Transactions() {
     date: format(new Date(), 'yyyy-MM-dd'),
     category_id: null,
   });
+
+  const handleBulkImport = useCallback(async (data: Array<{
+    date: string;
+    amount: number;
+    description: string;
+    type: 'income' | 'expense';
+    category_id?: string;
+  }>) => {
+    await createBulkTransactions.mutateAsync(data);
+  }, [createBulkTransactions]);
 
   const filteredTransactions = transactions.filter(t => {
     const matchesSearch = t.description?.toLowerCase().includes(search.toLowerCase()) ||
@@ -66,57 +78,69 @@ export default function Transactions() {
           </Select>
         </div>
         
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Add Transaction</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Transaction</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" /> Import CSV/Excel
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="mr-2 h-4 w-4" /> Add Transaction</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Transaction</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Type</Label>
+                    <Select value={formData.type} onValueChange={(v: 'income' | 'expense') => setFormData({ ...formData, type: v, category_id: null })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="income">Income</SelectItem>
+                        <SelectItem value="expense">Expense</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Amount</Label>
+                    <Input type="number" step="0.01" min="0" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })} required />
+                  </div>
+                </div>
                 <div className="space-y-2">
-                  <Label>Type</Label>
-                  <Select value={formData.type} onValueChange={(v: 'income' | 'expense') => setFormData({ ...formData, type: v, category_id: null })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Label>Category</Label>
+                  <Select value={formData.category_id || ''} onValueChange={(v) => setFormData({ ...formData, category_id: v || null })}>
+                    <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="income">Income</SelectItem>
-                      <SelectItem value="expense">Expense</SelectItem>
+                      {filteredCategories.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Amount</Label>
-                  <Input type="number" step="0.01" min="0" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })} required />
+                  <Label>Description</Label>
+                  <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Select value={formData.category_id || ''} onValueChange={(v) => setFormData({ ...formData, category_id: v || null })}>
-                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                  <SelectContent>
-                    {filteredCategories.map(cat => (
-                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Date</Label>
-                <Input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} required />
-              </div>
-              <Button type="submit" className="w-full" disabled={createTransaction.isPending}>
-                {createTransaction.isPending ? 'Adding...' : 'Add Transaction'}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="space-y-2">
+                  <Label>Date</Label>
+                  <Input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} required />
+                </div>
+                <Button type="submit" className="w-full" disabled={createTransaction.isPending}>
+                  {createTransaction.isPending ? 'Adding...' : 'Add Transaction'}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
+
+      <ImportTransactionsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        categories={categories.map(c => ({ id: c.id, name: c.name, type: c.type }))}
+        onImport={handleBulkImport}
+      />
 
       <Card className="border-border/50">
         <CardContent className="p-0">

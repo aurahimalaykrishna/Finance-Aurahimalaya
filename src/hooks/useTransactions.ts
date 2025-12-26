@@ -128,11 +128,38 @@ export function useTransactions() {
     },
   });
 
+  const createBulkTransactions = useMutation({
+    mutationFn: async (data: CreateTransactionData[]) => {
+      const transactionsToInsert = data.map(t => ({
+        ...t,
+        user_id: user!.id,
+      }));
+
+      const { error } = await supabase.from('transactions').insert(transactionsToInsert as any);
+      if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action: 'BULK_IMPORT',
+        entity_type: 'transaction',
+        new_values: { count: data.length } as any,
+      } as any);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast({ title: `${variables.length} transactions imported successfully` });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error importing transactions', description: error.message, variant: 'destructive' });
+    },
+  });
+
   return {
     transactions,
     isLoading,
     createTransaction,
     updateTransaction,
     deleteTransaction,
+    createBulkTransactions,
   };
 }
