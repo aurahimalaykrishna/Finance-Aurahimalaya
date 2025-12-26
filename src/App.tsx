@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CompanyProvider } from "@/contexts/CompanyContext";
+import { PermissionProvider } from "@/contexts/PermissionContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -16,6 +17,7 @@ import AuditLogs from "./pages/AuditLogs";
 import Settings from "./pages/Settings";
 import Companies from "./pages/Companies";
 import Reconciliation from "./pages/Reconciliation";
+import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,21 +44,24 @@ function AppRoutes() {
 
   return (
     <CompanyProvider>
-      <AppLayout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/transactions" element={<Transactions />} />
-          <Route path="/categories" element={<Categories />} />
-          <Route path="/budgets" element={<Budgets />} />
-          <Route path="/companies" element={<Companies />} />
-          <Route path="/reconciliation" element={<Reconciliation />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/audit-logs" element={<AuditLogs />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/auth" element={<Dashboard />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </AppLayout>
+      <PermissionProvider>
+        <AppLayout>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/categories" element={<Categories />} />
+            <Route path="/budgets" element={<Budgets />} />
+            <Route path="/companies" element={<Companies />} />
+            <Route path="/reconciliation" element={<Reconciliation />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/audit-logs" element={<AuditLogs />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/users" element={<UserManagement />} />
+            <Route path="/auth" element={<Dashboard />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AppLayout>
+      </PermissionProvider>
     </CompanyProvider>
   );
 }
