@@ -1,0 +1,161 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+
+export interface BankStatement {
+  id: string;
+  user_id: string;
+  bank_account_id: string;
+  statement_date: string;
+  reference_number: string | null;
+  description: string | null;
+  amount: number;
+  running_balance: number | null;
+  transaction_type: string | null;
+  is_matched: boolean;
+  matched_transaction_id: string | null;
+  created_at: string;
+}
+
+export interface CreateBankStatementData {
+  bank_account_id: string;
+  statement_date: string;
+  reference_number?: string;
+  description?: string;
+  amount: number;
+  running_balance?: number;
+  transaction_type?: string;
+}
+
+export function useBankStatements(bankAccountId?: string | null) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: bankStatements = [], isLoading } = useQuery({
+    queryKey: ['bank-statements', user?.id, bankAccountId],
+    queryFn: async () => {
+      if (!bankAccountId) return [];
+      
+      const { data, error } = await supabase
+        .from('bank_statements')
+        .select('*')
+        .eq('user_id', user!.id)
+        .eq('bank_account_id', bankAccountId)
+        .order('statement_date', { ascending: false });
+
+      if (error) throw error;
+      return data as BankStatement[];
+    },
+    enabled: !!user && !!bankAccountId,
+  });
+
+  const createBulkStatements = useMutation({
+    mutationFn: async (data: CreateBankStatementData[]) => {
+      const statementsToInsert = data.map(s => ({
+        ...s,
+        user_id: user!.id,
+      }));
+
+      const { error } = await supabase.from('bank_statements').insert(statementsToInsert as any);
+      if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action: 'BULK_IMPORT',
+        entity_type: 'bank_statement',
+        new_values: { count: data.length } as any,
+      } as any);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['bank-statements'] });
+      toast({ title: `${variables.length} bank statement entries imported` });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error importing statements', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const matchStatement = useMutation({
+    mutationFn: async ({ statementId, transactionId }: { statementId: string; transactionId: string }) => {
+      // Update bank statement
+      const { error: statementError } = await supabase
+        .from('bank_statements')
+        .update({ is_matched: true, matched_transaction_id: transactionId } as any)
+        .eq('id', statementId);
+      if (statementError) throw statementError;
+
+      // Update transaction
+      const { error: txError } = await supabase
+        .from('transactions')
+        .update({ is_reconciled: true, reconciled_at: new Date().toISOString(), bank_statement_id: statementId } as any)
+        .eq('id', transactionId);
+      if (txError) throw txError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bank-statements'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast({ title: 'Transaction matched successfully' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error matching transaction', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const unmatchStatement = useMutation({
+    mutationFn: async (statementId: string) => {
+      const statement = bankStatements.find(s => s.id === statementId);
+      
+      // Update bank statement
+      const { error: statementError } = await supabase
+        .from('bank_statements')
+        .update({ is_matched: false, matched_transaction_id: null } as any)
+        .eq('id', statementId);
+      if (statementError) throw statementError;
+
+      // Update transaction if there was one matched
+      if (statement?.matched_transaction_id) {
+        const { error: txError } = await supabase
+          .from('transactions')
+          .update({ is_reconciled: false, reconciled_at: null, bank_statement_id: null } as any)
+          .eq('id', statement.matched_transaction_id);
+        if (txError) throw txError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bank-statements'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast({ title: 'Match removed' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error removing match', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteStatements = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from('bank_statements')
+        .delete()
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bank-statements'] });
+      toast({ title: 'Statements deleted' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error deleting statements', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  return {
+    bankStatements,
+    isLoading,
+    createBulkStatements,
+    matchStatement,
+    unmatchStatement,
+    deleteStatements,
+  };
+}

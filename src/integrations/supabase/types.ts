@@ -47,6 +47,116 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_accounts: {
+        Row: {
+          account_name: string
+          account_number: string | null
+          account_type: string | null
+          bank_name: string | null
+          company_id: string | null
+          created_at: string | null
+          currency: string | null
+          current_balance: number | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          account_name: string
+          account_number?: string | null
+          account_type?: string | null
+          bank_name?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          current_balance?: number | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          account_name?: string
+          account_number?: string | null
+          account_type?: string | null
+          bank_name?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          current_balance?: number | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_statements: {
+        Row: {
+          amount: number
+          bank_account_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_matched: boolean | null
+          matched_transaction_id: string | null
+          reference_number: string | null
+          running_balance: number | null
+          statement_date: string
+          transaction_type: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bank_account_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_matched?: boolean | null
+          matched_transaction_id?: string | null
+          reference_number?: string | null
+          running_balance?: number | null
+          statement_date: string
+          transaction_type?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_matched?: boolean | null
+          matched_transaction_id?: string | null
+          reference_number?: string | null
+          running_balance?: number | null
+          statement_date?: string
+          transaction_type?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_statements_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_statements_matched_transaction_id_fkey"
+            columns: ["matched_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       budgets: {
         Row: {
           amount: number
@@ -205,44 +315,129 @@ export type Database = {
         }
         Relationships: []
       }
+      reconciliation_sessions: {
+        Row: {
+          bank_account_id: string | null
+          closing_balance: number
+          company_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          difference: number | null
+          end_date: string
+          id: string
+          matched_count: number | null
+          opening_balance: number
+          start_date: string
+          status: string | null
+          unmatched_count: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          bank_account_id?: string | null
+          closing_balance: number
+          company_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          difference?: number | null
+          end_date: string
+          id?: string
+          matched_count?: number | null
+          opening_balance: number
+          start_date: string
+          status?: string | null
+          unmatched_count?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          bank_account_id?: string | null
+          closing_balance?: number
+          company_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          difference?: number | null
+          end_date?: string
+          id?: string
+          matched_count?: number | null
+          opening_balance?: number
+          start_date?: string
+          status?: string | null
+          unmatched_count?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reconciliation_sessions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reconciliation_sessions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
+          bank_statement_id: string | null
           category_id: string | null
           company_id: string | null
           created_at: string | null
           date: string
           description: string | null
           id: string
+          is_reconciled: boolean | null
+          reconciled_at: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at: string | null
           user_id: string
         }
         Insert: {
           amount: number
+          bank_statement_id?: string | null
           category_id?: string | null
           company_id?: string | null
           created_at?: string | null
           date?: string
           description?: string | null
           id?: string
+          is_reconciled?: boolean | null
+          reconciled_at?: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string | null
           user_id: string
         }
         Update: {
           amount?: number
+          bank_statement_id?: string | null
           category_id?: string | null
           company_id?: string | null
           created_at?: string | null
           date?: string
           description?: string | null
           id?: string
+          is_reconciled?: boolean | null
+          reconciled_at?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "transactions_bank_statement_id_fkey"
+            columns: ["bank_statement_id"]
+            isOneToOne: false
+            referencedRelation: "bank_statements"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transactions_category_id_fkey"
             columns: ["category_id"]
