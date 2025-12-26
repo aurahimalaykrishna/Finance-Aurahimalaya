@@ -7,6 +7,7 @@ export interface Budget {
   id: string;
   user_id: string;
   category_id: string;
+  company_id: string | null;
   amount: number;
   period: string;
   start_date: string;
@@ -28,17 +29,18 @@ export interface CreateBudgetData {
   period: string;
   start_date: string;
   end_date?: string | null;
+  company_id?: string | null;
 }
 
-export function useBudgets() {
+export function useBudgets(companyId?: string | null) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const { data: budgets = [], isLoading } = useQuery({
-    queryKey: ['budgets', user?.id],
+    queryKey: ['budgets', user?.id, companyId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('budgets')
         .select(`
           *,
@@ -52,6 +54,12 @@ export function useBudgets() {
         `)
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false });
+
+      if (companyId) {
+        query = query.eq('company_id', companyId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data as Budget[];

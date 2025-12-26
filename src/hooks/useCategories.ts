@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 export interface Category {
   id: string;
   user_id: string;
+  company_id: string | null;
   name: string;
   type: 'income' | 'expense';
   icon: string;
@@ -18,21 +19,28 @@ export interface CreateCategoryData {
   type: 'income' | 'expense';
   icon?: string;
   color?: string;
+  company_id?: string | null;
 }
 
-export function useCategories() {
+export function useCategories(companyId?: string | null) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const { data: categories = [], isLoading } = useQuery({
-    queryKey: ['categories', user?.id],
+    queryKey: ['categories', user?.id, companyId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('categories')
         .select('*')
         .eq('user_id', user!.id)
         .order('name');
+
+      if (companyId) {
+        query = query.eq('company_id', companyId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data as Category[];
