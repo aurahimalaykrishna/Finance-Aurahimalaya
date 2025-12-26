@@ -8,7 +8,8 @@ import {
   Settings,
   LogOut,
   TrendingUp,
-  Building2
+  Building2,
+  Scale
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,6 +40,7 @@ const mainItems = [
 ];
 
 const analyticsItems = [
+  { title: 'Reconciliation', url: '/reconciliation', icon: Scale },
   { title: 'Reports', url: '/reports', icon: BarChart3 },
   { title: 'Audit Logs', url: '/audit-logs', icon: FileText },
 ];

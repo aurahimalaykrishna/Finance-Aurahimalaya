@@ -15,6 +15,7 @@ import Reports from "./pages/Reports";
 import AuditLogs from "./pages/AuditLogs";
 import Settings from "./pages/Settings";
 import Companies from "./pages/Companies";
+import Reconciliation from "./pages/Reconciliation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ function AppRoutes() {
           <Route path="/categories" element={<Categories />} />
           <Route path="/budgets" element={<Budgets />} />
           <Route path="/companies" element={<Companies />} />
+          <Route path="/reconciliation" element={<Reconciliation />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/audit-logs" element={<AuditLogs />} />
           <Route path="/settings" element={<Settings />} />

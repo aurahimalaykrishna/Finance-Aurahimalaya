@@ -14,6 +14,9 @@ export interface Transaction {
   date: string;
   created_at: string;
   updated_at: string;
+  is_reconciled?: boolean;
+  reconciled_at?: string | null;
+  bank_statement_id?: string | null;
   categories?: {
     id: string;
     name: string;
