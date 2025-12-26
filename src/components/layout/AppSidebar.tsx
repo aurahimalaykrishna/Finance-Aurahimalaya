@@ -9,7 +9,8 @@ import {
   LogOut,
   TrendingUp,
   Building2,
-  Scale
+  Scale,
+  Users
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,6 +47,7 @@ const analyticsItems = [
 ];
 
 const settingsItems = [
+  { title: 'User Management', url: '/users', icon: Users },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
 
