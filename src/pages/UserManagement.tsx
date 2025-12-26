@@ -1,5 +1,8 @@
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { useTeamInvitations } from '@/hooks/useTeamInvitations';
 import { TeamMemberCard } from '@/components/users/TeamMemberCard';
@@ -7,12 +10,23 @@ import { PendingInvitationCard } from '@/components/users/PendingInvitationCard'
 import { InviteUserDialog } from '@/components/users/InviteUserDialog';
 import { RoleBadge } from '@/components/users/RoleBadge';
 import { usePermissions } from '@/contexts/PermissionContext';
-import { Users, Mail, Shield } from 'lucide-react';
+import { Users, Mail, Shield, Search } from 'lucide-react';
 
 export default function UserManagement() {
   const { teamMembers, isLoading: membersLoading, userRole } = useUserRoles();
   const { invitations, isLoading: invitationsLoading } = useTeamInvitations();
   const { canManageUsers } = usePermissions();
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+
+  const filteredMembers = useMemo(() => {
+    return teamMembers.filter((member) => {
+      const matchesSearch = member.email.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesRole = roleFilter === 'all' || member.role === roleFilter;
+      return matchesSearch && matchesRole;
+    });
+  }, [teamMembers, searchQuery, roleFilter]);
 
   if (membersLoading) {
     return (
@@ -79,12 +93,39 @@ export default function UserManagement() {
         </TabsList>
 
         <TabsContent value="members" className="space-y-4">
-          {teamMembers.length === 0 ? (
+          {/* Search and Filter */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="owner">Owner</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="accountant">Accountant</SelectItem>
+                <SelectItem value="viewer">Viewer</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {filteredMembers.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Users className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No team members yet</p>
-                {canManageUsers && (
+                <p className="text-muted-foreground">
+                  {teamMembers.length === 0 ? 'No team members yet' : 'No members match your search'}
+                </p>
+                {canManageUsers && teamMembers.length === 0 && (
                   <p className="text-sm text-muted-foreground mt-2">
                     Invite team members to collaborate
                   </p>
@@ -92,7 +133,7 @@ export default function UserManagement() {
               </CardContent>
             </Card>
           ) : (
-            teamMembers.map((member) => (
+            filteredMembers.map((member) => (
               <TeamMemberCard key={member.user_id} member={member} />
             ))
           )}

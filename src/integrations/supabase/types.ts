@@ -319,30 +319,48 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           business_name: string | null
           created_at: string | null
           currency: string | null
+          department: string | null
           email: string | null
           fiscal_year_start: number | null
+          full_name: string | null
           id: string
+          is_active: boolean | null
+          job_title: string | null
+          phone: string | null
           updated_at: string | null
         }
         Insert: {
+          avatar_url?: string | null
           business_name?: string | null
           created_at?: string | null
           currency?: string | null
+          department?: string | null
           email?: string | null
           fiscal_year_start?: number | null
+          full_name?: string | null
           id: string
+          is_active?: boolean | null
+          job_title?: string | null
+          phone?: string | null
           updated_at?: string | null
         }
         Update: {
+          avatar_url?: string | null
           business_name?: string | null
           created_at?: string | null
           currency?: string | null
+          department?: string | null
           email?: string | null
           fiscal_year_start?: number | null
+          full_name?: string | null
           id?: string
+          is_active?: boolean | null
+          job_title?: string | null
+          phone?: string | null
           updated_at?: string | null
         }
         Relationships: []
