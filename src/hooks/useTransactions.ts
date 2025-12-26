@@ -7,6 +7,7 @@ export interface Transaction {
   id: string;
   user_id: string;
   category_id: string | null;
+  company_id: string | null;
   type: 'income' | 'expense';
   amount: number;
   description: string | null;
@@ -19,25 +20,30 @@ export interface Transaction {
     color: string;
     icon: string;
   } | null;
+  companies?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface CreateTransactionData {
   category_id?: string | null;
+  company_id?: string | null;
   type: 'income' | 'expense';
   amount: number;
   description?: string;
   date: string;
 }
 
-export function useTransactions() {
+export function useTransactions(companyId?: string | null) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const { data: transactions = [], isLoading } = useQuery({
-    queryKey: ['transactions', user?.id],
+    queryKey: ['transactions', user?.id, companyId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('transactions')
         .select(`
           *,
@@ -46,10 +52,21 @@ export function useTransactions() {
             name,
             color,
             icon
+          ),
+          companies (
+            id,
+            name
           )
         `)
         .eq('user_id', user!.id)
         .order('date', { ascending: false });
+
+      // Filter by company if specified (not 'all')
+      if (companyId) {
+        query = query.eq('company_id', companyId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data as Transaction[];

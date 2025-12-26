@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { CompanyProvider } from "@/contexts/CompanyContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -13,6 +14,7 @@ import Budgets from "./pages/Budgets";
 import Reports from "./pages/Reports";
 import AuditLogs from "./pages/AuditLogs";
 import Settings from "./pages/Settings";
+import Companies from "./pages/Companies";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,19 +40,22 @@ function AppRoutes() {
   }
 
   return (
-    <AppLayout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/transactions" element={<Transactions />} />
-        <Route path="/categories" element={<Categories />} />
-        <Route path="/budgets" element={<Budgets />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/audit-logs" element={<AuditLogs />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/auth" element={<Dashboard />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </AppLayout>
+    <CompanyProvider>
+      <AppLayout>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/transactions" element={<Transactions />} />
+          <Route path="/categories" element={<Categories />} />
+          <Route path="/budgets" element={<Budgets />} />
+          <Route path="/companies" element={<Companies />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/audit-logs" element={<AuditLogs />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/auth" element={<Dashboard />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AppLayout>
+    </CompanyProvider>
   );
 }
 

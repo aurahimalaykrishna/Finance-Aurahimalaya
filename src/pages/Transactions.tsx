@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useTransactions, CreateTransactionData } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
+import { useCompanyContext } from '@/contexts/CompanyContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,13 +9,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ImportTransactionsDialog } from '@/components/transactions/ImportTransactionsDialog';
 
 export default function Transactions() {
-  const { transactions, isLoading, createTransaction, deleteTransaction, createBulkTransactions } = useTransactions();
-  const { categories } = useCategories();
+  const { selectedCompanyId, selectedCompany, companies, isAllCompanies } = useCompanyContext();
+  const { transactions, isLoading, createTransaction, deleteTransaction, createBulkTransactions } = useTransactions(selectedCompanyId);
+  const { categories } = useCategories(selectedCompanyId);
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -25,6 +28,7 @@ export default function Transactions() {
     description: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     category_id: null,
+    company_id: selectedCompanyId,
   });
 
   const handleBulkImport = useCallback(async (data: Array<{
@@ -34,8 +38,13 @@ export default function Transactions() {
     type: 'income' | 'expense';
     category_id?: string;
   }>) => {
-    await createBulkTransactions.mutateAsync(data);
-  }, [createBulkTransactions]);
+    // Add company_id to each imported transaction
+    const dataWithCompany = data.map(t => ({
+      ...t,
+      company_id: selectedCompanyId,
+    }));
+    await createBulkTransactions.mutateAsync(dataWithCompany);
+  }, [createBulkTransactions, selectedCompanyId]);
 
   const filteredTransactions = transactions.filter(t => {
     const matchesSearch = t.description?.toLowerCase().includes(search.toLowerCase()) ||
@@ -46,9 +55,19 @@ export default function Transactions() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createTransaction.mutateAsync(formData);
+    await createTransaction.mutateAsync({
+      ...formData,
+      company_id: formData.company_id || selectedCompanyId,
+    });
     setOpen(false);
-    setFormData({ type: 'expense', amount: 0, description: '', date: format(new Date(), 'yyyy-MM-dd'), category_id: null });
+    setFormData({ 
+      type: 'expense', 
+      amount: 0, 
+      description: '', 
+      date: format(new Date(), 'yyyy-MM-dd'), 
+      category_id: null,
+      company_id: selectedCompanyId,
+    });
   };
 
   const filteredCategories = categories.filter(c => c.type === formData.type);
@@ -79,18 +98,38 @@ export default function Transactions() {
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
+          <Button variant="outline" onClick={() => setImportOpen(true)} disabled={isAllCompanies}>
             <Upload className="mr-2 h-4 w-4" /> Import CSV/Excel
           </Button>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="mr-2 h-4 w-4" /> Add Transaction</Button>
+              <Button disabled={isAllCompanies}>
+                <Plus className="mr-2 h-4 w-4" /> Add Transaction
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add Transaction</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {companies.length > 1 && (
+                  <div className="space-y-2">
+                    <Label>Company</Label>
+                    <Select 
+                      value={formData.company_id || ''} 
+                      onValueChange={(v) => setFormData({ ...formData, company_id: v || null })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select company" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {companies.map(company => (
+                          <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Type</Label>
@@ -135,6 +174,13 @@ export default function Transactions() {
         </div>
       </div>
 
+      {isAllCompanies && (
+        <div className="bg-muted/50 border rounded-lg p-3 text-sm text-muted-foreground flex items-center gap-2">
+          <Building2 className="h-4 w-4" />
+          Viewing all companies. Select a specific company to add or import transactions.
+        </div>
+      )}
+
       <ImportTransactionsDialog
         open={importOpen}
         onOpenChange={setImportOpen}
@@ -149,6 +195,7 @@ export default function Transactions() {
               <TableRow>
                 <TableHead>Type</TableHead>
                 <TableHead>Description</TableHead>
+                {isAllCompanies && <TableHead>Company</TableHead>}
                 <TableHead>Category</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
@@ -167,6 +214,16 @@ export default function Transactions() {
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{t.description || '-'}</TableCell>
+                    {isAllCompanies && (
+                      <TableCell>
+                        {t.companies && (
+                          <Badge variant="outline" className="font-normal">
+                            <Building2 className="h-3 w-3 mr-1" />
+                            {t.companies.name}
+                          </Badge>
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell>
                       {t.categories && (
                         <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs" style={{ backgroundColor: `${t.categories.color}20`, color: t.categories.color }}>
@@ -187,7 +244,7 @@ export default function Transactions() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAllCompanies ? 7 : 6} className="text-center py-8 text-muted-foreground">
                     {isLoading ? 'Loading...' : 'No transactions found'}
                   </TableCell>
                 </TableRow>

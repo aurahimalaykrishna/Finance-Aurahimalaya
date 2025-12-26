@@ -7,7 +7,8 @@ import {
   FileText, 
   Settings,
   LogOut,
-  TrendingUp
+  TrendingUp,
+  Building2
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,12 +28,14 @@ import {
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { CompanySwitcher } from '@/components/company/CompanySwitcher';
 
 const mainItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'Transactions', url: '/transactions', icon: ArrowLeftRight },
   { title: 'Categories', url: '/categories', icon: FolderOpen },
   { title: 'Budgets', url: '/budgets', icon: Target },
+  { title: 'Companies', url: '/companies', icon: Building2 },
 ];
 
 const analyticsItems = [
@@ -72,6 +75,11 @@ export function AppSidebar() {
             </div>
           )}
         </div>
+        {!collapsed && (
+          <div className="mt-4">
+            <CompanySwitcher />
+          </div>
+        )}
       </SidebarHeader>
 
       <SidebarContent className="px-2">

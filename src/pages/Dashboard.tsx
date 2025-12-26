@@ -3,17 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
-import { useBudgets } from '@/hooks/useBudgets';
+import { useCompanyContext } from '@/contexts/CompanyContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, Building2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const { transactions } = useTransactions();
-  const { categories } = useCategories();
+  const { selectedCompanyId, selectedCompany, companies, isAllCompanies } = useCompanyContext();
+  const { transactions } = useTransactions(selectedCompanyId);
+  const { categories } = useCategories(selectedCompanyId);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -58,10 +59,33 @@ export default function Dashboard() {
     }))
     .filter(c => c.value > 0);
 
+  // Company comparison data (only when viewing all companies)
+  const companyData = isAllCompanies ? companies.map(company => {
+    const companyTransactions = transactions.filter(t => t.company_id === company.id);
+    const income = companyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
+    const expenses = companyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
+    return {
+      id: company.id,
+      name: company.name,
+      income,
+      expenses,
+      profit: income - expenses,
+      transactionCount: companyTransactions.length,
+    };
+  }) : [];
+
   const recentTransactions = transactions.slice(0, 5);
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Current View Indicator */}
+      {isAllCompanies && (
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium">Viewing aggregated data from all {companies.length} companies</span>
+        </div>
+      )}
+
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-border/50">
@@ -71,7 +95,9 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">${totalIncome.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">All time income</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isAllCompanies ? 'All companies' : selectedCompany?.name || 'All time income'}
+            </p>
           </CardContent>
         </Card>
 
@@ -82,7 +108,9 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">${totalExpenses.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">All time expenses</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isAllCompanies ? 'All companies' : selectedCompany?.name || 'All time expenses'}
+            </p>
           </CardContent>
         </Card>
 
@@ -110,6 +138,49 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Company Comparison (only when viewing all companies) */}
+      {isAllCompanies && companyData.length > 0 && (
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Company Comparison
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {companyData.map(company => (
+                <Card key={company.id} className="bg-muted/30">
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold mb-3">{company.name}</h3>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Income</span>
+                        <span className="text-success font-medium">${company.income.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Expenses</span>
+                        <span className="text-destructive font-medium">${company.expenses.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="text-muted-foreground">Profit</span>
+                        <span className={`font-semibold ${company.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                          ${company.profit.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Transactions</span>
+                        <span>{company.transactionCount}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Charts */}
       <div className="grid gap-4 md:grid-cols-2">
@@ -192,7 +263,12 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <p className="font-medium text-sm">{transaction.description || transaction.categories?.name || 'Transaction'}</p>
-                      <p className="text-xs text-muted-foreground">{format(new Date(transaction.date), 'MMM dd, yyyy')}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-muted-foreground">{format(new Date(transaction.date), 'MMM dd, yyyy')}</p>
+                        {isAllCompanies && transaction.companies && (
+                          <span className="text-xs text-muted-foreground">• {transaction.companies.name}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className={`font-semibold ${transaction.type === 'income' ? 'text-success' : 'text-destructive'}`}>

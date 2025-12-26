@@ -51,6 +51,7 @@ export type Database = {
         Row: {
           amount: number
           category_id: string
+          company_id: string | null
           created_at: string | null
           end_date: string | null
           id: string
@@ -62,6 +63,7 @@ export type Database = {
         Insert: {
           amount: number
           category_id: string
+          company_id?: string | null
           created_at?: string | null
           end_date?: string | null
           id?: string
@@ -73,6 +75,7 @@ export type Database = {
         Update: {
           amount?: number
           category_id?: string
+          company_id?: string | null
           created_at?: string | null
           end_date?: string | null
           id?: string
@@ -89,11 +92,19 @@ export type Database = {
             referencedRelation: "categories"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "budgets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
         ]
       }
       categories: {
         Row: {
           color: string | null
+          company_id: string | null
           created_at: string | null
           icon: string | null
           id: string
@@ -103,6 +114,7 @@ export type Database = {
         }
         Insert: {
           color?: string | null
+          company_id?: string | null
           created_at?: string | null
           icon?: string | null
           id?: string
@@ -112,11 +124,53 @@ export type Database = {
         }
         Update: {
           color?: string | null
+          company_id?: string | null
           created_at?: string | null
           icon?: string | null
           id?: string
           name?: string
           type?: Database["public"]["Enums"]["transaction_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      companies: {
+        Row: {
+          created_at: string | null
+          currency: string | null
+          fiscal_year_start: number | null
+          id: string
+          is_default: boolean | null
+          name: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          currency?: string | null
+          fiscal_year_start?: number | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          currency?: string | null
+          fiscal_year_start?: number | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -155,6 +209,7 @@ export type Database = {
         Row: {
           amount: number
           category_id: string | null
+          company_id: string | null
           created_at: string | null
           date: string
           description: string | null
@@ -166,6 +221,7 @@ export type Database = {
         Insert: {
           amount: number
           category_id?: string | null
+          company_id?: string | null
           created_at?: string | null
           date?: string
           description?: string | null
@@ -177,6 +233,7 @@ export type Database = {
         Update: {
           amount?: number
           category_id?: string | null
+          company_id?: string | null
           created_at?: string | null
           date?: string
           description?: string | null
@@ -191,6 +248,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
