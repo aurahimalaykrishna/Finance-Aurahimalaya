@@ -4,6 +4,7 @@ import { AppSidebar } from './AppSidebar';
 import { Separator } from '@/components/ui/separator';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@/components/ui/breadcrumb';
 import { useLocation } from 'react-router-dom';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const routeTitles: Record<string, string> = {
   '/': 'Dashboard',
@@ -38,6 +39,9 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
+            <div className="ml-auto">
+              <ThemeToggle />
+            </div>
           </header>
           <main className="flex-1 p-6 overflow-auto">
             {children}
