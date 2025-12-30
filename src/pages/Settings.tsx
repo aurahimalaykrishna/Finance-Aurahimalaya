@@ -1,17 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'INR'];
+import { CURRENCIES } from '@/lib/currencies';
 
 export default function Settings() {
   const { profile, isLoading, updateProfile } = useProfile();
-  const [businessName, setBusinessName] = useState(profile?.business_name || '');
-  const [currency, setCurrency] = useState(profile?.currency || 'USD');
+  const [businessName, setBusinessName] = useState('');
+  const [currency, setCurrency] = useState('NPR');
+
+  useEffect(() => {
+    if (profile) {
+      setBusinessName(profile.business_name || '');
+      setCurrency(profile.currency || 'NPR');
+    }
+  }, [profile]);
 
   const handleSave = async () => {
     await updateProfile.mutateAsync({ business_name: businessName, currency });
@@ -47,11 +53,17 @@ export default function Settings() {
             <Input value={profile?.email || ''} disabled className="bg-muted" />
           </div>
           <div className="space-y-2">
-            <Label>Currency</Label>
+            <Label>Default Currency</Label>
             <Select value={currency} onValueChange={setCurrency}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c.code} value={c.code}>
+                    {c.code} - {c.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
