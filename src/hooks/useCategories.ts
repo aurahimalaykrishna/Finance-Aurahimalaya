@@ -37,7 +37,8 @@ export function useCategories(companyId?: string | null) {
         .order('name');
 
       if (companyId) {
-        query = query.eq('company_id', companyId);
+        // Include categories for this company OR global categories (company_id is null)
+        query = query.or(`company_id.eq.${companyId},company_id.is.null`);
       }
 
       const { data, error } = await query;

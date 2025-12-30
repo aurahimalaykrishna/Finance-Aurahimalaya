@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, Building2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { getCurrencySymbol } from '@/lib/currencies';
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
@@ -67,6 +68,7 @@ export default function Dashboard() {
     return {
       id: company.id,
       name: company.name,
+      currency: company.currency || 'NPR',
       income,
       expenses,
       profit: income - expenses,
@@ -75,6 +77,9 @@ export default function Dashboard() {
   }) : [];
 
   const recentTransactions = transactions.slice(0, 5);
+
+  // Get currency symbol based on selected company
+  const currencySymbol = getCurrencySymbol(selectedCompany?.currency || 'NPR');
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -94,7 +99,7 @@ export default function Dashboard() {
             <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">${totalIncome.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-success">{currencySymbol}{totalIncome.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {isAllCompanies ? 'All companies' : selectedCompany?.name || 'All time income'}
             </p>
@@ -107,7 +112,7 @@ export default function Dashboard() {
             <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">${totalExpenses.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-destructive">{currencySymbol}{totalExpenses.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground mt-1">
               {isAllCompanies ? 'All companies' : selectedCompany?.name || 'All time expenses'}
             </p>
@@ -121,7 +126,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
-              ${netProfit.toLocaleString()}
+              {currencySymbol}{netProfit.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">{profitMargin}% margin</p>
           </CardContent>
@@ -157,16 +162,16 @@ export default function Dashboard() {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Income</span>
-                        <span className="text-success font-medium">${company.income.toLocaleString()}</span>
+                        <span className="text-success font-medium">{getCurrencySymbol(company.currency)}{company.income.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Expenses</span>
-                        <span className="text-destructive font-medium">${company.expenses.toLocaleString()}</span>
+                        <span className="text-destructive font-medium">{getCurrencySymbol(company.currency)}{company.expenses.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between border-t pt-2">
                         <span className="text-muted-foreground">Profit</span>
                         <span className={`font-semibold ${company.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          ${company.profit.toLocaleString()}
+                          {getCurrencySymbol(company.currency)}{company.profit.toLocaleString()}
                         </span>
                       </div>
                       <div className="flex justify-between text-xs">
@@ -272,7 +277,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className={`font-semibold ${transaction.type === 'income' ? 'text-success' : 'text-destructive'}`}>
-                    {transaction.type === 'income' ? '+' : '-'}${Number(transaction.amount).toLocaleString()}
+                    {transaction.type === 'income' ? '+' : '-'}{currencySymbol}{Number(transaction.amount).toLocaleString()}
                   </div>
                 </div>
               ))}
