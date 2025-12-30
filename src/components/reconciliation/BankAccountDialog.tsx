@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { BankAccount, CreateBankAccountData } from '@/hooks/useBankAccounts';
+import { CURRENCIES } from '@/lib/currencies';
 
 interface BankAccountDialogProps {
   open: boolean;
@@ -12,15 +13,23 @@ interface BankAccountDialogProps {
   account?: BankAccount | null;
   onSubmit: (data: CreateBankAccountData) => void;
   companyId?: string | null;
+  companyCurrency?: string;
 }
 
-export function BankAccountDialog({ open, onOpenChange, account, onSubmit, companyId }: BankAccountDialogProps) {
+export function BankAccountDialog({ 
+  open, 
+  onOpenChange, 
+  account, 
+  onSubmit, 
+  companyId,
+  companyCurrency = 'NPR'
+}: BankAccountDialogProps) {
   const [formData, setFormData] = useState<CreateBankAccountData>({
     account_name: '',
     account_number: '',
     bank_name: '',
     account_type: 'checking',
-    currency: 'USD',
+    currency: companyCurrency,
     current_balance: 0,
     company_id: companyId,
   });
@@ -42,12 +51,12 @@ export function BankAccountDialog({ open, onOpenChange, account, onSubmit, compa
         account_number: '',
         bank_name: '',
         account_type: 'checking',
-        currency: 'USD',
+        currency: companyCurrency,
         current_balance: 0,
         company_id: companyId,
       });
     }
-  }, [account, companyId]);
+  }, [account, companyId, companyCurrency]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +88,7 @@ export function BankAccountDialog({ open, onOpenChange, account, onSubmit, compa
               id="bank_name"
               value={formData.bank_name}
               onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-              placeholder="e.g., Chase, Bank of America"
+              placeholder="e.g., NIC Asia, Nabil Bank"
             />
           </div>
 
@@ -124,10 +133,11 @@ export function BankAccountDialog({ open, onOpenChange, account, onSubmit, compa
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="GBP">GBP</SelectItem>
-                  <SelectItem value="CAD">CAD</SelectItem>
+                  {CURRENCIES.map((currency) => (
+                    <SelectItem key={currency.code} value={currency.code}>
+                      {currency.code} - {currency.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Company, CreateCompanyData } from '@/hooks/useCompanies';
+import { CURRENCIES } from '@/lib/currencies';
 
 interface CompanyDialogProps {
   open: boolean;
@@ -14,7 +15,6 @@ interface CompanyDialogProps {
   onSave: (data: CreateCompanyData) => void;
 }
 
-const currencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CNY', 'INR', 'BRL', 'MXN'];
 const months = [
   { value: 1, label: 'January' },
   { value: 2, label: 'February' },
@@ -33,7 +33,7 @@ const months = [
 export function CompanyDialog({ open, onOpenChange, company, onSave }: CompanyDialogProps) {
   const [formData, setFormData] = useState<CreateCompanyData>({
     name: '',
-    currency: 'USD',
+    currency: 'NPR',
     fiscal_year_start: 1,
     is_default: false,
   });
@@ -42,14 +42,14 @@ export function CompanyDialog({ open, onOpenChange, company, onSave }: CompanyDi
     if (company) {
       setFormData({
         name: company.name,
-        currency: company.currency || 'USD',
+        currency: company.currency || 'NPR',
         fiscal_year_start: company.fiscal_year_start || 1,
         is_default: company.is_default || false,
       });
     } else {
       setFormData({
         name: '',
-        currency: 'USD',
+        currency: 'NPR',
         fiscal_year_start: 1,
         is_default: false,
       });
@@ -91,9 +91,9 @@ export function CompanyDialog({ open, onOpenChange, company, onSave }: CompanyDi
                 <SelectValue placeholder="Select currency" />
               </SelectTrigger>
               <SelectContent>
-                {currencies.map((currency) => (
-                  <SelectItem key={currency} value={currency}>
-                    {currency}
+                {CURRENCIES.map((currency) => (
+                  <SelectItem key={currency.code} value={currency.code}>
+                    {currency.code} - {currency.name}
                   </SelectItem>
                 ))}
               </SelectContent>
