@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useTransactions, CreateTransactionData } from '@/hooks/useTransactions';
+import { useTransactions, CreateTransactionData, Transaction } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useCompanyContext } from '@/contexts/CompanyContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,16 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2 } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { ImportTransactionsDialog } from '@/components/transactions/ImportTransactionsDialog';
+import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
+import { getCurrencySymbol } from '@/lib/currencies';
 
 export default function Transactions() {
   const { selectedCompanyId, selectedCompany, companies, isAllCompanies } = useCompanyContext();
-  const { transactions, isLoading, createTransaction, deleteTransaction, createBulkTransactions } = useTransactions(selectedCompanyId);
+  const { transactions, isLoading, createTransaction, updateTransaction, deleteTransaction, createBulkTransactions } = useTransactions(selectedCompanyId);
   const { categories } = useCategories(selectedCompanyId);
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [formData, setFormData] = useState<CreateTransactionData>({
@@ -70,7 +73,20 @@ export default function Transactions() {
     });
   };
 
+  const handleEditSave = async (id: string, data: Partial<CreateTransactionData>) => {
+    await updateTransaction.mutateAsync({ id, data });
+  };
+
   const filteredCategories = categories.filter(c => c.type === formData.type);
+
+  // Get currency symbol for a transaction based on its company
+  const getTransactionCurrency = (transaction: Transaction) => {
+    if (transaction.companies) {
+      const company = companies.find(c => c.id === transaction.company_id);
+      return getCurrencySymbol(company?.currency || 'NPR');
+    }
+    return getCurrencySymbol(selectedCompany?.currency || 'NPR');
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -188,6 +204,15 @@ export default function Transactions() {
         onImport={handleBulkImport}
       />
 
+      <EditTransactionDialog
+        open={!!editingTransaction}
+        onOpenChange={(open) => !open && setEditingTransaction(null)}
+        transaction={editingTransaction}
+        categories={categories}
+        onSave={handleEditSave}
+        isPending={updateTransaction.isPending}
+      />
+
       <Card className="border-border/50">
         <CardContent className="p-0">
           <Table>
@@ -199,7 +224,7 @@ export default function Transactions() {
                 <TableHead>Category</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+                <TableHead className="w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -233,12 +258,17 @@ export default function Transactions() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{format(new Date(t.date), 'MMM dd, yyyy')}</TableCell>
                     <TableCell className={`text-right font-semibold ${t.type === 'income' ? 'text-success' : 'text-destructive'}`}>
-                      {t.type === 'income' ? '+' : '-'}${Number(t.amount).toLocaleString()}
+                      {t.type === 'income' ? '+' : '-'}{getTransactionCurrency(t)}{Number(t.amount).toLocaleString()}
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => deleteTransaction.mutate(t.id)}>
-                        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => setEditingTransaction(t)}>
+                          <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => deleteTransaction.mutate(t.id)}>
+                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
