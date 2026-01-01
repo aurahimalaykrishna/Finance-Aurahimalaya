@@ -210,12 +210,12 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
 
               <div className="space-y-2">
                 <Label>Reference/Check # (optional)</Label>
-                <Select value={mapping.reference || ''} onValueChange={(v) => setMapping({ ...mapping, reference: v || undefined })}>
+                <Select value={mapping.reference || '__none__'} onValueChange={(v) => setMapping({ ...mapping, reference: v === '__none__' ? undefined : v })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select column..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__none__">None</SelectItem>
                     {columns.map(col => (
                       <SelectItem key={col} value={col}>{col}</SelectItem>
                     ))}
