@@ -15,6 +15,7 @@ export interface Company {
   address: string | null;
   created_at: string | null;
   updated_at: string | null;
+  access_role?: 'owner' | 'admin' | 'accountant' | 'viewer';
 }
 
 export interface CreateCompanyData {
@@ -36,14 +37,23 @@ export function useCompanies() {
     queryKey: ['companies', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('user_id', user!.id)
-        .order('is_default', { ascending: false })
-        .order('name', { ascending: true });
+        .rpc('get_user_companies', { _user_id: user!.id });
 
       if (error) throw error;
-      return data as Company[];
+      
+      // Sort: owned companies first, then by default status, then by name
+      const sorted = (data as Company[]).sort((a, b) => {
+        // Owners first
+        if (a.access_role === 'owner' && b.access_role !== 'owner') return -1;
+        if (a.access_role !== 'owner' && b.access_role === 'owner') return 1;
+        // Then by default status
+        if (a.is_default && !b.is_default) return -1;
+        if (!a.is_default && b.is_default) return 1;
+        // Then by name
+        return a.name.localeCompare(b.name);
+      });
+      
+      return sorted;
     },
     enabled: !!user,
   });
