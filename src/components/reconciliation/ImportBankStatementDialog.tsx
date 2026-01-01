@@ -44,6 +44,51 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
   const [selectedSheet, setSelectedSheet] = useState<string>('');
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
 
+  // Auto-detect column mappings based on common header patterns
+  const autoDetectColumns = (cols: string[]) => {
+    const lowerCols = cols.map(c => c.toLowerCase().trim());
+    
+    const patterns = {
+      date: ['date', 'txn date', 'transaction date', 'value date', 'posting date', 'trans date'],
+      description: ['description', 'particulars', 'narration', 'details', 'remarks', 'memo', 'transaction description'],
+      amount: ['amount', 'txn amount', 'transaction amount', 'value'],
+      debit: ['debit', 'dr', 'withdrawal', 'withdrawals', 'money out', 'out'],
+      credit: ['credit', 'cr', 'deposit', 'deposits', 'money in', 'in'],
+      balance: ['balance', 'running balance', 'closing balance', 'available balance', 'ledger balance'],
+      reference: ['reference', 'ref', 'ref no', 'reference no', 'check no', 'cheque no', 'txn id', 'transaction id'],
+    };
+
+    const findMatch = (patternList: string[]): string | undefined => {
+      for (const pattern of patternList) {
+        const idx = lowerCols.findIndex(c => c === pattern || c.includes(pattern));
+        if (idx !== -1) return cols[idx];
+      }
+      return undefined;
+    };
+
+    const detected = {
+      date: findMatch(patterns.date) || '',
+      description: findMatch(patterns.description) || '',
+      amount: findMatch(patterns.amount) || '',
+      debit: findMatch(patterns.debit),
+      credit: findMatch(patterns.credit),
+      balance: findMatch(patterns.balance),
+      reference: findMatch(patterns.reference),
+    };
+
+    // Auto-set amount mode based on detected columns
+    const hasDebitCredit = detected.debit && detected.credit;
+    const hasSingleAmount = detected.amount && !hasDebitCredit;
+    
+    if (hasDebitCredit) {
+      setAmountMode('debit-credit');
+    } else if (hasSingleAmount) {
+      setAmountMode('single');
+    }
+
+    setMapping(detected);
+  };
+
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -77,9 +122,11 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
         complete: (results) => {
           const data = results.data as Record<string, string>[];
           if (data.length > 0) {
-            setColumns(Object.keys(data[0]));
+            const cols = Object.keys(data[0]);
+            setColumns(cols);
             setRawData(data);
             setSheets([]);
+            autoDetectColumns(cols);
             setStep('mapping');
           }
         },
@@ -87,12 +134,16 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
     }
   }, []);
 
-  const loadSheetData = (wb: XLSX.WorkBook, sheetName: string) => {
+  const loadSheetData = (wb: XLSX.WorkBook, sheetName: string, autoDetect = true) => {
     const sheet = wb.Sheets[sheetName];
     const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { raw: false });
     if (json.length > 0) {
-      setColumns(Object.keys(json[0]));
+      const cols = Object.keys(json[0]);
+      setColumns(cols);
       setRawData(json);
+      if (autoDetect) {
+        autoDetectColumns(cols);
+      }
     }
   };
 
