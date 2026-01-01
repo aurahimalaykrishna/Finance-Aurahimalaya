@@ -17,6 +17,7 @@ import Reports from "./pages/Reports";
 import AuditLogs from "./pages/AuditLogs";
 import Settings from "./pages/Settings";
 import Companies from "./pages/Companies";
+import CompanyProfile from "./pages/CompanyProfile";
 import Reconciliation from "./pages/Reconciliation";
 import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
@@ -53,6 +54,7 @@ function AppRoutes() {
             <Route path="/categories" element={<Categories />} />
             <Route path="/budgets" element={<Budgets />} />
             <Route path="/companies" element={<Companies />} />
+            <Route path="/company/:id" element={<CompanyProfile />} />
             <Route path="/reconciliation" element={<Reconciliation />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/audit-logs" element={<AuditLogs />} />

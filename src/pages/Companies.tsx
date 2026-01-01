@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Plus, Trash2, Pencil, Star, Building2, MapPin } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Trash2, Pencil, Star, Building2, MapPin, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +9,7 @@ import { useCompanies, Company } from '@/hooks/useCompanies';
 import { CompanyDialog } from '@/components/company/CompanyDialog';
 
 export default function Companies() {
+  const navigate = useNavigate();
   const { companies, isLoading, createCompany, updateCompany, deleteCompany, setDefaultCompany } = useCompanies();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
@@ -97,6 +99,14 @@ export default function Companies() {
               </div>
 
               <div className="flex items-center gap-2 pt-2 border-t">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate(`/company/${company.id}`)}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  View
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"

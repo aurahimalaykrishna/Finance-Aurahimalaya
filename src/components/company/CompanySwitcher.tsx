@@ -1,4 +1,4 @@
-import { Building2, ChevronDown, Plus, Check } from 'lucide-react';
+import { Building2, ChevronDown, Plus, Check, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -74,6 +74,15 @@ export function CompanySwitcher() {
             {selectedCompany?.id === company.id && <Check className="h-4 w-4" />}
           </DropdownMenuItem>
         ))}
+        {selectedCompany && !isAllCompanies && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate(`/company/${selectedCompany.id}`)}>
+              <Eye className="h-4 w-4 mr-2" />
+              View Profile
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate('/companies')}>
           <Plus className="h-4 w-4 mr-2" />
