@@ -8,14 +8,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { ImportTransactionsDialog } from '@/components/transactions/ImportTransactionsDialog';
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
 import { ViewTransactionDialog } from '@/components/transactions/ViewTransactionDialog';
 import { getCurrencySymbol, CURRENCIES } from '@/lib/currencies';
+import { exportToCSV, exportToExcel } from '@/utils/exportUtils';
 
 export default function Transactions() {
   const { selectedCompanyId, selectedCompany, companies, isAllCompanies } = useCompanyContext();
@@ -121,8 +123,23 @@ export default function Transactions() {
         </div>
         
         <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={filteredTransactions.length === 0}>
+                <Download className="mr-2 h-4 w-4" /> Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => exportToCSV(filteredTransactions)}>
+                <FileText className="mr-2 h-4 w-4" /> Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportToExcel(filteredTransactions)}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" /> Export as Excel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" onClick={() => setImportOpen(true)} disabled={isAllCompanies}>
-            <Upload className="mr-2 h-4 w-4" /> Import CSV/Excel
+            <Upload className="mr-2 h-4 w-4" /> Import
           </Button>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
