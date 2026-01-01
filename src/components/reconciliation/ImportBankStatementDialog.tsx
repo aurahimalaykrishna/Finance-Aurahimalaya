@@ -171,12 +171,12 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
         const debitVal = parseFloat(row[mapping.debit || '']?.replace(/[^0-9.-]/g, '') || '0');
         const creditVal = parseFloat(row[mapping.credit || '']?.replace(/[^0-9.-]/g, '') || '0');
         
-        if (debitVal > 0) {
-          amount = debitVal;
-          transactionType = 'debit'; // Money going OUT (expense)
-        } else if (creditVal > 0) {
+        if (creditVal > 0) {
           amount = creditVal;
-          transactionType = 'credit'; // Money coming IN (income)
+          transactionType = 'debit'; // Credit column = Money OUT (expense/withdrawal)
+        } else if (debitVal > 0) {
+          amount = debitVal;
+          transactionType = 'credit'; // Debit column = Money IN (income/deposit)
         }
       }
 
@@ -213,6 +213,21 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
     if (ddmmyyyyMatch) {
       const [, day, month, year] = ddmmyyyyMatch;
       return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    
+    // Handle "Month Day, Year" format (e.g., "July 1, 2025")
+    const monthNameMatch = dateStr.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s*(\d{4})$/);
+    if (monthNameMatch) {
+      const [, monthName, day, year] = monthNameMatch;
+      const months: Record<string, string> = {
+        january: '01', february: '02', march: '03', april: '04',
+        may: '05', june: '06', july: '07', august: '08',
+        september: '09', october: '10', november: '11', december: '12'
+      };
+      const monthNum = months[monthName.toLowerCase()];
+      if (monthNum) {
+        return `${year}-${monthNum}-${day.padStart(2, '0')}`;
+      }
     }
     
     const date = new Date(dateStr);
@@ -388,7 +403,7 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
               ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Debit Column (Money Out) *</Label>
+                    <Label>Debit Column (Money In) *</Label>
                     <Select value={mapping.debit || ''} onValueChange={(v) => setMapping({ ...mapping, debit: v })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select column..." />
@@ -401,7 +416,7 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Credit Column (Money In) *</Label>
+                    <Label>Credit Column (Money Out) *</Label>
                     <Select value={mapping.credit || ''} onValueChange={(v) => setMapping({ ...mapping, credit: v })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select column..." />
