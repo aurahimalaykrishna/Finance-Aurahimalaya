@@ -264,6 +264,7 @@ export default function Transactions() {
         categories={categories}
         onSave={handleEditSave}
         isPending={updateTransaction.isPending}
+        defaultCurrency={selectedCompany?.currency || 'NPR'}
       />
 
       <ViewTransactionDialog

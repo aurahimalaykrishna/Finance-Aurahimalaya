@@ -15,6 +15,7 @@ interface ReconciliationWorkspaceProps {
   onMatch: (statementId: string, transactionId: string) => void;
   onUnmatch: (statementId: string) => void;
   onAutoMatch: () => void;
+  currencySymbol?: string;
 }
 
 export function ReconciliationWorkspace({
@@ -23,6 +24,7 @@ export function ReconciliationWorkspace({
   onMatch,
   onUnmatch,
   onAutoMatch,
+  currencySymbol = '$',
 }: ReconciliationWorkspaceProps) {
   const [selectedStatement, setSelectedStatement] = useState<string | null>(null);
   const [selectedTransaction, setSelectedTransaction] = useState<string | null>(null);
@@ -127,7 +129,7 @@ export function ReconciliationWorkspace({
                       </div>
                       <div className="text-right ml-2">
                         <p className={`font-medium ${statement.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
-                          {statement.transaction_type === 'credit' ? '+' : '-'}${Math.abs(statement.amount).toFixed(2)}
+                          {statement.transaction_type === 'credit' ? '+' : '-'}{currencySymbol}{Math.abs(statement.amount).toFixed(2)}
                         </p>
                         {statement.is_matched ? (
                           <Badge variant="outline" className="text-green-600 border-green-600">
@@ -197,7 +199,7 @@ export function ReconciliationWorkspace({
                       </div>
                       <div className="text-right ml-2">
                         <p className={`font-medium ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                          {transaction.type === 'income' ? '+' : '-'}${transaction.amount.toFixed(2)}
+                          {transaction.type === 'income' ? '+' : '-'}{currencySymbol}{transaction.amount.toFixed(2)}
                         </p>
                         {transaction.is_reconciled ? (
                           <Badge variant="outline" className="text-green-600 border-green-600">

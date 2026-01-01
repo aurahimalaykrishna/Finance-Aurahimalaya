@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Upload, History, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useCompanyContext } from '@/contexts/CompanyContext';
+import { getCurrencySymbol } from '@/lib/currencies';
 import { useBankAccounts } from '@/hooks/useBankAccounts';
 import { useBankStatements } from '@/hooks/useBankStatements';
 import { useReconciliation } from '@/hooks/useReconciliation';
@@ -20,8 +21,9 @@ import { ReconciliationWorkspace } from '@/components/reconciliation/Reconciliat
 import { ReconciliationSummary } from '@/components/reconciliation/ReconciliationSummary';
 
 export default function Reconciliation() {
-  const { selectedCompanyId } = useCompanyContext();
+  const { selectedCompanyId, selectedCompany } = useCompanyContext();
   const companyId = selectedCompanyId === 'all' ? null : selectedCompanyId;
+  const currencySymbol = getCurrencySymbol(selectedCompany?.currency || 'NPR');
 
   const { bankAccounts, isLoading: loadingAccounts, createBankAccount, updateBankAccount, deleteBankAccount } = useBankAccounts(companyId);
   const { reconciliationSessions, createSession, completeSession, deleteSession, findMatches } = useReconciliation(companyId);
@@ -216,6 +218,7 @@ export default function Reconciliation() {
                   onMatch={(statementId, transactionId) => matchStatement.mutate({ statementId, transactionId })}
                   onUnmatch={(statementId) => unmatchStatement.mutate(statementId)}
                   onAutoMatch={handleAutoMatch}
+                  currencySymbol={currencySymbol}
                 />
               </div>
               <div>
@@ -256,7 +259,7 @@ export default function Reconciliation() {
                   </div>
                   <div className="mt-4">
                     <p className="text-2xl font-bold">
-                      {account.currency} ${account.current_balance.toFixed(2)}
+                      {getCurrencySymbol(account.currency || 'NPR')}{account.current_balance.toFixed(2)}
                     </p>
                   </div>
                   <div className="flex gap-2 mt-4">
@@ -319,7 +322,7 @@ export default function Reconciliation() {
                       </TableCell>
                       <TableCell>{session.matched_count}</TableCell>
                       <TableCell className={session.difference !== 0 ? 'text-red-600' : ''}>
-                        ${Math.abs(session.difference).toFixed(2)}
+                        {currencySymbol}{Math.abs(session.difference).toFixed(2)}
                       </TableCell>
                       <TableCell>
                         {session.status === 'completed' ? (

@@ -17,6 +17,7 @@ interface EditTransactionDialogProps {
   categories: Category[];
   onSave: (id: string, data: Partial<CreateTransactionData>) => Promise<void>;
   isPending?: boolean;
+  defaultCurrency?: string;
 }
 
 export function EditTransactionDialog({
@@ -26,6 +27,7 @@ export function EditTransactionDialog({
   categories,
   onSave,
   isPending = false,
+  defaultCurrency = 'NPR',
 }: EditTransactionDialogProps) {
   const [formData, setFormData] = useState<Partial<CreateTransactionData>>({
     type: 'expense',
@@ -33,7 +35,7 @@ export function EditTransactionDialog({
     description: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     category_id: null,
-    currency: 'NPR',
+    currency: defaultCurrency,
   });
 
   useEffect(() => {

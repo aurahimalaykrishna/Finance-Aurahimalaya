@@ -1,5 +1,7 @@
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
+import { useCompanyContext } from '@/contexts/CompanyContext';
+import { getCurrencySymbol } from '@/lib/currencies';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
@@ -7,6 +9,8 @@ import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 export default function Reports() {
   const { transactions } = useTransactions();
   const { categories } = useCategories();
+  const { selectedCompany } = useCompanyContext();
+  const currencySymbol = getCurrencySymbol(selectedCompany?.currency || 'NPR');
 
   const monthlyData = Array.from({ length: 12 }, (_, i) => {
     const date = subMonths(new Date(), 11 - i);
@@ -111,7 +115,7 @@ export default function Reports() {
                     <span>{cat.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">${cat.value.toLocaleString()}</span>
+                    <span className="font-medium">{currencySymbol}{cat.value.toLocaleString()}</span>
                     <span className="text-muted-foreground">({((cat.value / totalIncome) * 100).toFixed(1)}%)</span>
                   </div>
                 </div>
@@ -147,7 +151,7 @@ export default function Reports() {
                     <span>{cat.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">${cat.value.toLocaleString()}</span>
+                    <span className="font-medium">{currencySymbol}{cat.value.toLocaleString()}</span>
                     <span className="text-muted-foreground">({((cat.value / totalExpenses) * 100).toFixed(1)}%)</span>
                   </div>
                 </div>

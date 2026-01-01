@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useBudgets, CreateBudgetData } from '@/hooks/useBudgets';
 import { useCategories } from '@/hooks/useCategories';
 import { useTransactions } from '@/hooks/useTransactions';
+import { useCompanyContext } from '@/contexts/CompanyContext';
+import { getCurrencySymbol } from '@/lib/currencies';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +19,8 @@ export default function Budgets() {
   const { budgets, isLoading, createBudget, deleteBudget } = useBudgets();
   const { expenseCategories, categories, getCategoryDisplayName } = useCategories();
   const { transactions } = useTransactions();
+  const { selectedCompany } = useCompanyContext();
+  const currencySymbol = getCurrencySymbol(selectedCompany?.currency || 'NPR');
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<CreateBudgetData>({
     category_id: '',
@@ -136,8 +140,8 @@ export default function Budgets() {
                 <CardContent>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className={isOverBudget ? 'text-destructive' : 'text-muted-foreground'}>${spent.toLocaleString()} spent</span>
-                      <span className="font-medium">${Number(budget.amount).toLocaleString()}</span>
+                      <span className={isOverBudget ? 'text-destructive' : 'text-muted-foreground'}>{currencySymbol}{spent.toLocaleString()} spent</span>
+                      <span className="font-medium">{currencySymbol}{Number(budget.amount).toLocaleString()}</span>
                     </div>
                     <Progress value={percentage} className={isOverBudget ? '[&>div]:bg-destructive' : ''} />
                     <p className="text-xs text-muted-foreground text-right">{percentage.toFixed(0)}% used</p>
