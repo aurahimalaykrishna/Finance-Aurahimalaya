@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Upload, FileSpreadsheet } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
@@ -21,9 +22,13 @@ interface ColumnMapping {
   date: string;
   description: string;
   amount: string;
+  debit?: string;
+  credit?: string;
   reference?: string;
   balance?: string;
 }
+
+type AmountMode = 'single' | 'debit-credit';
 
 export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, onImport }: ImportBankStatementDialogProps) {
   const [step, setStep] = useState<'upload' | 'mapping' | 'preview'>('upload');
@@ -32,6 +37,12 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
   const [columns, setColumns] = useState<string[]>([]);
   const [mapping, setMapping] = useState<ColumnMapping>({ date: '', description: '', amount: '' });
   const [previewData, setPreviewData] = useState<CreateBankStatementData[]>([]);
+  const [amountMode, setAmountMode] = useState<AmountMode>('single');
+  
+  // Multi-sheet support
+  const [sheets, setSheets] = useState<string[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState<string>('');
+  const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -43,14 +54,20 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
       const reader = new FileReader();
       reader.onload = (evt) => {
         const data = new Uint8Array(evt.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { raw: false });
-        if (json.length > 0) {
-          setColumns(Object.keys(json[0]));
-          setRawData(json);
-          setStep('mapping');
+        const wb = XLSX.read(data, { type: 'array' });
+        setWorkbook(wb);
+        
+        if (wb.SheetNames.length > 1) {
+          // Multiple sheets - let user choose
+          setSheets(wb.SheetNames);
+          setSelectedSheet(wb.SheetNames[0]);
+          loadSheetData(wb, wb.SheetNames[0]);
+        } else {
+          // Single sheet - load directly
+          setSheets([]);
+          loadSheetData(wb, wb.SheetNames[0]);
         }
+        setStep('mapping');
       };
       reader.readAsArrayBuffer(file);
     } else {
@@ -62,6 +79,7 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
           if (data.length > 0) {
             setColumns(Object.keys(data[0]));
             setRawData(data);
+            setSheets([]);
             setStep('mapping');
           }
         },
@@ -69,19 +87,68 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
     }
   }, []);
 
+  const loadSheetData = (wb: XLSX.WorkBook, sheetName: string) => {
+    const sheet = wb.Sheets[sheetName];
+    const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { raw: false });
+    if (json.length > 0) {
+      setColumns(Object.keys(json[0]));
+      setRawData(json);
+    }
+  };
+
+  const handleSheetChange = (sheetName: string) => {
+    setSelectedSheet(sheetName);
+    if (workbook) {
+      loadSheetData(workbook, sheetName);
+      // Reset mapping when sheet changes
+      setMapping({ date: '', description: '', amount: '' });
+    }
+  };
+
   const handleMappingComplete = () => {
     const parsed: CreateBankStatementData[] = rawData.map(row => {
-      const amount = parseFloat(row[mapping.amount]?.replace(/[^0-9.-]/g, '') || '0');
+      let amount = 0;
+      let transactionType: 'debit' | 'credit' = 'credit';
+
+      if (amountMode === 'single') {
+        // Single amount column logic
+        const rawAmount = parseFloat(row[mapping.amount]?.replace(/[^0-9.-]/g, '') || '0');
+        amount = Math.abs(rawAmount);
+        transactionType = rawAmount < 0 ? 'debit' : 'credit';
+      } else {
+        // Separate debit/credit columns
+        const debitVal = parseFloat(row[mapping.debit || '']?.replace(/[^0-9.-]/g, '') || '0');
+        const creditVal = parseFloat(row[mapping.credit || '']?.replace(/[^0-9.-]/g, '') || '0');
+        
+        if (debitVal > 0) {
+          amount = debitVal;
+          transactionType = 'debit'; // Money going OUT (expense)
+        } else if (creditVal > 0) {
+          amount = creditVal;
+          transactionType = 'credit'; // Money coming IN (income)
+        }
+      }
+
+      const statementDate = formatDate(row[mapping.date]);
+      const runningBalance = mapping.balance 
+        ? parseFloat(row[mapping.balance]?.replace(/[^0-9.-]/g, '') || '0') 
+        : undefined;
+
       return {
         bank_account_id: selectedAccountId,
-        statement_date: formatDate(row[mapping.date]),
+        statement_date: statementDate,
         description: row[mapping.description] || '',
-        amount: Math.abs(amount),
+        amount,
         reference_number: mapping.reference ? row[mapping.reference] : undefined,
-        running_balance: mapping.balance ? parseFloat(row[mapping.balance]?.replace(/[^0-9.-]/g, '') || '0') : undefined,
-        transaction_type: amount < 0 ? 'debit' : 'credit',
+        running_balance: runningBalance,
+        transaction_type: transactionType,
       };
-    }).filter(item => !isNaN(item.amount) && item.statement_date);
+    }).filter(item => 
+      !isNaN(item.amount) && 
+      item.amount > 0 && 
+      item.statement_date && 
+      item.statement_date.length > 0
+    );
 
     setPreviewData(parsed);
     setStep('preview');
@@ -89,6 +156,14 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
 
   const formatDate = (dateStr: string): string => {
     if (!dateStr) return '';
+    
+    // Handle DD-MM-YYYY or DD/MM/YYYY format
+    const ddmmyyyyMatch = dateStr.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (ddmmyyyyMatch) {
+      const [, day, month, year] = ddmmyyyyMatch;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return '';
     return date.toISOString().split('T')[0];
@@ -106,7 +181,22 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
     setMapping({ date: '', description: '', amount: '' });
     setPreviewData([]);
     setSelectedAccountId('');
+    setAmountMode('single');
+    setSheets([]);
+    setSelectedSheet('');
+    setWorkbook(null);
     onOpenChange(false);
+  };
+
+  const isMappingValid = () => {
+    const hasDate = !!mapping.date;
+    const hasDescription = !!mapping.description;
+    
+    if (amountMode === 'single') {
+      return hasDate && hasDescription && !!mapping.amount;
+    } else {
+      return hasDate && hasDescription && !!mapping.debit && !!mapping.credit;
+    }
   };
 
   return (
@@ -165,24 +255,27 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">Map your file columns to the required fields:</p>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Date Column *</Label>
-                <Select value={mapping.date} onValueChange={(v) => setMapping({ ...mapping, date: v })}>
+            {/* Sheet selector for multi-sheet Excel files */}
+            {sheets.length > 1 && (
+              <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+                <Label>Select Sheet</Label>
+                <Select value={selectedSheet} onValueChange={handleSheetChange}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select column..." />
+                    <SelectValue placeholder="Choose sheet..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {columns.map(col => (
-                      <SelectItem key={col} value={col}>{col}</SelectItem>
+                    {sheets.map(sheet => (
+                      <SelectItem key={sheet} value={sheet}>{sheet}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-
+            )}
+            
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Amount Column *</Label>
-                <Select value={mapping.amount} onValueChange={(v) => setMapping({ ...mapping, amount: v })}>
+                <Label>Date Column *</Label>
+                <Select value={mapping.date} onValueChange={(v) => setMapping({ ...mapping, date: v })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select column..." />
                   </SelectTrigger>
@@ -201,6 +294,87 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
                     <SelectValue placeholder="Select column..." />
                   </SelectTrigger>
                   <SelectContent>
+                    {columns.map(col => (
+                      <SelectItem key={col} value={col}>{col}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Amount mode toggle */}
+            <div className="space-y-3 p-3 border rounded-lg">
+              <Label>Amount Type</Label>
+              <RadioGroup 
+                value={amountMode} 
+                onValueChange={(v) => setAmountMode(v as AmountMode)}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="single" id="single" />
+                  <Label htmlFor="single" className="font-normal cursor-pointer">Single Amount Column</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="debit-credit" id="debit-credit" />
+                  <Label htmlFor="debit-credit" className="font-normal cursor-pointer">Separate Debit/Credit</Label>
+                </div>
+              </RadioGroup>
+
+              {amountMode === 'single' ? (
+                <div className="space-y-2">
+                  <Label>Amount Column *</Label>
+                  <Select value={mapping.amount} onValueChange={(v) => setMapping({ ...mapping, amount: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select column..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {columns.map(col => (
+                        <SelectItem key={col} value={col}>{col}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Debit Column (Money Out) *</Label>
+                    <Select value={mapping.debit || ''} onValueChange={(v) => setMapping({ ...mapping, debit: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select column..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {columns.map(col => (
+                          <SelectItem key={col} value={col}>{col}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Credit Column (Money In) *</Label>
+                    <Select value={mapping.credit || ''} onValueChange={(v) => setMapping({ ...mapping, credit: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select column..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {columns.map(col => (
+                          <SelectItem key={col} value={col}>{col}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Balance Column (optional)</Label>
+                <Select value={mapping.balance || '__none__'} onValueChange={(v) => setMapping({ ...mapping, balance: v === '__none__' ? undefined : v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select column..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
                     {columns.map(col => (
                       <SelectItem key={col} value={col}>{col}</SelectItem>
                     ))}
@@ -228,7 +402,7 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
               <Button variant="outline" onClick={() => setStep('upload')}>Back</Button>
               <Button 
                 onClick={handleMappingComplete}
-                disabled={!mapping.date || !mapping.amount || !mapping.description}
+                disabled={!isMappingValid()}
               >
                 Continue
               </Button>
@@ -250,6 +424,7 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
                     <TableHead>Description</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Type</TableHead>
+                    {mapping.balance && <TableHead className="text-right">Balance</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -259,6 +434,11 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
                       <TableCell className="max-w-[200px] truncate">{item.description}</TableCell>
                       <TableCell className="text-right">${item.amount.toFixed(2)}</TableCell>
                       <TableCell>{item.transaction_type}</TableCell>
+                      {mapping.balance && (
+                        <TableCell className="text-right">
+                          {item.running_balance !== undefined ? `$${item.running_balance.toFixed(2)}` : '-'}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
