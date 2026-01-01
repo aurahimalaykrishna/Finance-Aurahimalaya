@@ -7,6 +7,7 @@ import { ArrowUpRight, ArrowDownRight, CheckCircle2, XCircle, Building2, Pencil 
 import { format } from 'date-fns';
 import { getCurrencySymbol } from '@/lib/currencies';
 import { Transaction } from '@/hooks/useTransactions';
+import { Category } from '@/hooks/useCategories';
 import { TransactionNotes } from './TransactionNotes';
 import { ReceiptUpload } from './ReceiptUpload';
 
@@ -14,6 +15,7 @@ interface ViewTransactionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transaction: Transaction | null;
+  categories?: Category[];
   onEdit?: () => void;
 }
 
@@ -21,12 +23,27 @@ export function ViewTransactionDialog({
   open,
   onOpenChange,
   transaction,
+  categories = [],
   onEdit,
 }: ViewTransactionDialogProps) {
   if (!transaction) return null;
 
   const currencySymbol = getCurrencySymbol(transaction.currency || 'NPR');
   const isIncome = transaction.type === 'income';
+
+  // Get category display name with parent
+  const getCategoryDisplayName = () => {
+    if (!transaction.categories) return null;
+    
+    const category = categories.find(c => c.id === transaction.category_id);
+    if (category?.parent_id) {
+      const parent = categories.find(c => c.id === category.parent_id);
+      if (parent) {
+        return `${parent.name} > ${transaction.categories.name}`;
+      }
+    }
+    return transaction.categories.name;
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,7 +106,7 @@ export function ViewTransactionDialog({
                         color: transaction.categories.color || undefined,
                       }}
                     >
-                      {transaction.categories.name}
+                      {getCategoryDisplayName()}
                     </span>
                   }
                 />

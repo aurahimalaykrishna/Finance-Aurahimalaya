@@ -12,6 +12,7 @@ export interface Category {
   icon: string;
   color: string;
   created_at: string;
+  parent_id: string | null;
 }
 
 export interface CreateCategoryData {
@@ -20,6 +21,7 @@ export interface CreateCategoryData {
   icon?: string;
   color?: string;
   company_id?: string | null;
+  parent_id?: string | null;
 }
 
 export function useCategories(companyId?: string | null) {
@@ -48,6 +50,40 @@ export function useCategories(companyId?: string | null) {
     },
     enabled: !!user,
   });
+
+  // Get parent categories (categories without a parent)
+  const parentCategories = categories.filter(c => c.parent_id === null);
+  
+  // Get sub-categories for a specific parent
+  const getSubCategories = (parentId: string) => 
+    categories.filter(c => c.parent_id === parentId);
+  
+  // Check if a category has sub-categories
+  const hasSubCategories = (categoryId: string) => 
+    categories.some(c => c.parent_id === categoryId);
+  
+  // Get category name with parent prefix (e.g., "Parent > Sub")
+  const getCategoryDisplayName = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId);
+    if (!category) return '';
+    
+    if (category.parent_id) {
+      const parent = categories.find(c => c.id === category.parent_id);
+      return parent ? `${parent.name} > ${category.name}` : category.name;
+    }
+    return category.name;
+  };
+
+  // Get all categories organized hierarchically
+  const getHierarchicalCategories = (type?: 'income' | 'expense') => {
+    const filtered = type ? categories.filter(c => c.type === type) : categories;
+    const parents = filtered.filter(c => c.parent_id === null);
+    
+    return parents.map(parent => ({
+      ...parent,
+      subCategories: filtered.filter(c => c.parent_id === parent.id),
+    }));
+  };
 
   const incomeCategories = categories.filter(c => c.type === 'income');
   const expenseCategories = categories.filter(c => c.type === 'expense');
@@ -127,9 +163,14 @@ export function useCategories(companyId?: string | null) {
     categories,
     incomeCategories,
     expenseCategories,
+    parentCategories,
     isLoading,
     createCategory,
     updateCategory,
     deleteCategory,
+    getSubCategories,
+    hasSubCategories,
+    getCategoryDisplayName,
+    getHierarchicalCategories,
   };
 }

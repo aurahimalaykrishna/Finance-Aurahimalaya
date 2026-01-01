@@ -16,13 +16,14 @@ import { format } from 'date-fns';
 import { ImportTransactionsDialog } from '@/components/transactions/ImportTransactionsDialog';
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
 import { ViewTransactionDialog } from '@/components/transactions/ViewTransactionDialog';
+import { CategorySelect } from '@/components/categories/CategorySelect';
 import { getCurrencySymbol, CURRENCIES } from '@/lib/currencies';
 import { exportToCSV, exportToExcel } from '@/utils/exportUtils';
 
 export default function Transactions() {
   const { selectedCompanyId, selectedCompany, companies, isAllCompanies } = useCompanyContext();
   const { transactions, isLoading, createTransaction, updateTransaction, deleteTransaction, createBulkTransactions } = useTransactions(selectedCompanyId);
-  const { categories } = useCategories(selectedCompanyId);
+  const { categories, getCategoryDisplayName } = useCategories(selectedCompanyId);
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -97,6 +98,21 @@ export default function Transactions() {
     return getCurrencySymbol(selectedCompany?.currency || 'NPR');
   };
 
+  // Get display name for transaction category
+  const getTransactionCategoryDisplay = (transaction: Transaction) => {
+    if (!transaction.categories) return null;
+    
+    // Check if this category has a parent
+    const category = categories.find(c => c.id === transaction.category_id);
+    if (category?.parent_id) {
+      const parent = categories.find(c => c.id === category.parent_id);
+      if (parent) {
+        return `${parent.name} > ${transaction.categories.name}`;
+      }
+    }
+    return transaction.categories.name;
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between gap-4">
@@ -130,10 +146,10 @@ export default function Transactions() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => exportToCSV(filteredTransactions)}>
+              <DropdownMenuItem onClick={() => exportToCSV(filteredTransactions, 'transactions', categories)}>
                 <FileText className="mr-2 h-4 w-4" /> Export as CSV
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => exportToExcel(filteredTransactions)}>
+              <DropdownMenuItem onClick={() => exportToExcel(filteredTransactions, 'transactions', categories)}>
                 <FileSpreadsheet className="mr-2 h-4 w-4" /> Export as Excel
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -188,14 +204,12 @@ export default function Transactions() {
                 </div>
                 <div className="space-y-2">
                   <Label>Category</Label>
-                  <Select value={formData.category_id || ''} onValueChange={(v) => setFormData({ ...formData, category_id: v || null })}>
-                    <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                    <SelectContent>
-                      {filteredCategories.map(cat => (
-                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CategorySelect
+                    categories={filteredCategories}
+                    value={formData.category_id}
+                    onValueChange={(v) => setFormData({ ...formData, category_id: v })}
+                    type={formData.type}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Description</Label>
@@ -239,7 +253,7 @@ export default function Transactions() {
       <ImportTransactionsDialog
         open={importOpen}
         onOpenChange={setImportOpen}
-        categories={categories.map(c => ({ id: c.id, name: c.name, type: c.type }))}
+        categories={categories.map(c => ({ id: c.id, name: c.name, type: c.type, parent_id: c.parent_id }))}
         onImport={handleBulkImport}
       />
 
@@ -256,6 +270,7 @@ export default function Transactions() {
         open={!!viewingTransaction}
         onOpenChange={(open) => !open && setViewingTransaction(null)}
         transaction={viewingTransaction}
+        categories={categories}
         onEdit={() => {
           setEditingTransaction(viewingTransaction);
           setViewingTransaction(null);
@@ -301,7 +316,7 @@ export default function Transactions() {
                     <TableCell>
                       {t.categories && (
                         <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs" style={{ backgroundColor: `${t.categories.color}20`, color: t.categories.color }}>
-                          {t.categories.name}
+                          {getTransactionCategoryDisplay(t)}
                         </span>
                       )}
                     </TableCell>

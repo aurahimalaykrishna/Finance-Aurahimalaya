@@ -219,6 +219,7 @@ export type Database = {
           icon: string | null
           id: string
           name: string
+          parent_id: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           user_id: string
         }
@@ -229,6 +230,7 @@ export type Database = {
           icon?: string | null
           id?: string
           name: string
+          parent_id?: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           user_id: string
         }
@@ -239,6 +241,7 @@ export type Database = {
           icon?: string | null
           id?: string
           name?: string
+          parent_id?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
           user_id?: string
         }
@@ -248,6 +251,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
             referencedColumns: ["id"]
           },
         ]

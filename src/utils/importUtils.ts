@@ -248,7 +248,7 @@ export function determineTransactionType(
 export function validateAndParseRow(
   row: Record<string, unknown>,
   mapping: ColumnMapping,
-  existingCategories: Array<{ id: string; name: string; type: string }>
+  existingCategories: Array<{ id: string; name: string; type: string; parent_id?: string | null }>
 ): ParsedRow {
   const errors: string[] = [];
   
@@ -281,13 +281,39 @@ export function validateAndParseRow(
     ? String(row[mapping.description] || '').trim() 
     : '';
   
-  // Try to match category
+  // Try to match category (support hierarchical matching)
   let matchedCategory: string | undefined;
   if (mapping.category && row[mapping.category]) {
     const categoryValue = String(row[mapping.category]).toLowerCase().trim();
-    const match = existingCategories.find(
+    
+    // First, try exact match
+    let match = existingCategories.find(
       c => c.name.toLowerCase() === categoryValue && c.type === type
     );
+    
+    // If no match, try matching "Parent > Sub" format
+    if (!match && categoryValue.includes('>')) {
+      const parts = categoryValue.split('>').map(p => p.trim());
+      if (parts.length === 2) {
+        const [parentName, subName] = parts;
+        const parent = existingCategories.find(
+          c => c.name.toLowerCase() === parentName && c.type === type && !c.parent_id
+        );
+        if (parent) {
+          match = existingCategories.find(
+            c => c.name.toLowerCase() === subName && c.type === type && c.parent_id === parent.id
+          );
+        }
+      }
+    }
+    
+    // If still no match, try fuzzy matching on sub-category name only
+    if (!match) {
+      match = existingCategories.find(
+        c => c.name.toLowerCase().includes(categoryValue) && c.type === type
+      );
+    }
+    
     if (match) {
       matchedCategory = match.id;
     }
@@ -308,7 +334,7 @@ export function validateAndParseRow(
 export function validateRows(
   rows: Record<string, unknown>[],
   mapping: ColumnMapping,
-  existingCategories: Array<{ id: string; name: string; type: string }>
+  existingCategories: Array<{ id: string; name: string; type: string; parent_id?: string | null }>
 ): ParsedRow[] {
   return rows.map(row => validateAndParseRow(row, mapping, existingCategories));
 }
