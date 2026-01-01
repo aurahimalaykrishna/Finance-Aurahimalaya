@@ -14,7 +14,7 @@ import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, 
 import { format } from 'date-fns';
 import { ImportTransactionsDialog } from '@/components/transactions/ImportTransactionsDialog';
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
-import { getCurrencySymbol } from '@/lib/currencies';
+import { getCurrencySymbol, CURRENCIES } from '@/lib/currencies';
 
 export default function Transactions() {
   const { selectedCompanyId, selectedCompany, companies, isAllCompanies } = useCompanyContext();
@@ -32,6 +32,7 @@ export default function Transactions() {
     date: format(new Date(), 'yyyy-MM-dd'),
     category_id: null,
     company_id: selectedCompanyId,
+    currency: selectedCompany?.currency || 'NPR',
   });
 
   const handleBulkImport = useCallback(async (data: Array<{
@@ -70,6 +71,7 @@ export default function Transactions() {
       date: format(new Date(), 'yyyy-MM-dd'), 
       category_id: null,
       company_id: selectedCompanyId,
+      currency: selectedCompany?.currency || 'NPR',
     });
   };
 
@@ -79,8 +81,11 @@ export default function Transactions() {
 
   const filteredCategories = categories.filter(c => c.type === formData.type);
 
-  // Get currency symbol for a transaction based on its company
+  // Get currency symbol for a transaction - prioritize transaction's own currency
   const getTransactionCurrency = (transaction: Transaction) => {
+    if (transaction.currency) {
+      return getCurrencySymbol(transaction.currency);
+    }
     if (transaction.companies) {
       const company = companies.find(c => c.id === transaction.company_id);
       return getCurrencySymbol(company?.currency || 'NPR');
@@ -177,9 +182,24 @@ export default function Transactions() {
                   <Label>Description</Label>
                   <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Date</Label>
-                  <Input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} required />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Currency</Label>
+                    <Select value={formData.currency || 'NPR'} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map(currency => (
+                          <SelectItem key={currency.code} value={currency.code}>
+                            {currency.symbol} {currency.code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={createTransaction.isPending}>
                   {createTransaction.isPending ? 'Adding...' : 'Add Transaction'}

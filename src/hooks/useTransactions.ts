@@ -14,6 +14,7 @@ export interface Transaction {
   date: string;
   created_at: string;
   updated_at: string;
+  currency?: string;
   is_reconciled?: boolean;
   reconciled_at?: string | null;
   bank_statement_id?: string | null;
@@ -36,6 +37,7 @@ export interface CreateTransactionData {
   amount: number;
   description?: string;
   date: string;
+  currency?: string;
 }
 
 export function useTransactions(companyId?: string | null) {
