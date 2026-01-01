@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, FolderOpen, ChevronRight, ChevronDown, FolderPlus } from 'lucide-react';
+import { Plus, Trash2, FolderOpen, ChevronRight, ChevronDown, FolderPlus, Pencil } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
@@ -18,12 +18,15 @@ export default function Categories() {
     expenseCategories, 
     isLoading, 
     createCategory, 
+    updateCategory,
     deleteCategory,
     getSubCategories,
     hasSubCategories,
   } = useCategories();
   
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState<CreateCategoryData>({
     name: '',
@@ -38,6 +41,36 @@ export default function Categories() {
     await createCategory.mutateAsync(formData);
     setOpen(false);
     setFormData({ name: '', type: 'expense', color: COLORS[0], icon: 'folder', parent_id: null });
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory) return;
+    
+    await updateCategory.mutateAsync({
+      id: editingCategory.id,
+      data: {
+        name: formData.name,
+        color: formData.color,
+        type: formData.type,
+        parent_id: formData.parent_id,
+      },
+    });
+    setEditOpen(false);
+    setEditingCategory(null);
+    setFormData({ name: '', type: 'expense', color: COLORS[0], icon: 'folder', parent_id: null });
+  };
+
+  const handleEdit = (category: Category) => {
+    setEditingCategory(category);
+    setFormData({
+      name: category.name,
+      type: category.type,
+      color: category.color || COLORS[0],
+      icon: category.icon || 'folder',
+      parent_id: category.parent_id,
+    });
+    setEditOpen(true);
   };
 
   const handleAddSubCategory = (parent: Category) => {
@@ -65,6 +98,19 @@ export default function Categories() {
   const getParentCategoriesByType = (type: 'income' | 'expense') => 
     categories.filter(c => c.type === type && c.parent_id === null);
 
+  // Check if category type can be changed (only if no sub-categories)
+  const canChangeType = editingCategory ? !hasSubCategories(editingCategory.id) : true;
+
+  // Get available parent categories for editing
+  const getAvailableParentsForEdit = () => {
+    if (!editingCategory) return [];
+    return categories.filter(c => 
+      c.type === formData.type && 
+      c.parent_id === null && 
+      c.id !== editingCategory.id
+    );
+  };
+
   const CategoryCard = ({ category, isSubCategory = false }: { category: Category; isSubCategory?: boolean }) => {
     const subCategories = getSubCategories(category.id);
     const hasChildren = subCategories.length > 0;
@@ -82,9 +128,14 @@ export default function Categories() {
               <p className="text-xs text-muted-foreground">Sub-category</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => deleteCategory.mutate(category.id)}>
-            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={() => handleEdit(category)} title="Edit sub-category">
+              <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => deleteCategory.mutate(category.id)}>
+              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+            </Button>
+          </div>
         </div>
       );
     }
@@ -126,6 +177,14 @@ export default function Categories() {
                 title="Add sub-category"
               >
                 <FolderPlus className="h-4 w-4 text-muted-foreground hover:text-primary" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => handleEdit(category)}
+                title="Edit category"
+              >
+                <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
               </Button>
               <Button 
                 variant="ghost" 
@@ -243,6 +302,90 @@ export default function Categories() {
               </div>
               <Button type="submit" className="w-full" disabled={createCategory.isPending}>
                 {createCategory.isPending ? 'Adding...' : formData.parent_id ? 'Add Sub-Category' : 'Add Category'}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Category Dialog */}
+        <Dialog open={editOpen} onOpenChange={(isOpen) => {
+          setEditOpen(isOpen);
+          if (!isOpen) {
+            setEditingCategory(null);
+            setFormData({ name: '', type: 'expense', color: COLORS[0], icon: 'folder', parent_id: null });
+          }
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Category</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
+              </div>
+              
+              {/* Type - only editable for parent categories without sub-categories */}
+              {editingCategory?.parent_id === null && (
+                <div className="space-y-2">
+                  <Label>Type</Label>
+                  {canChangeType ? (
+                    <Select 
+                      value={formData.type} 
+                      onValueChange={(v: 'income' | 'expense') => setFormData({ ...formData, type: v, parent_id: null })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="income">Income</SelectItem>
+                        <SelectItem value="expense">Expense</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="p-3 bg-muted/50 rounded-lg text-sm capitalize">
+                      {formData.type}
+                      <span className="text-muted-foreground ml-2 text-xs">(has sub-categories)</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Parent Category - for sub-categories, allow changing parent */}
+              {editingCategory?.parent_id !== null && (
+                <div className="space-y-2">
+                  <Label>Parent Category</Label>
+                  <Select 
+                    value={formData.parent_id || 'none'} 
+                    onValueChange={(v) => setFormData({ ...formData, parent_id: v === 'none' ? null : v })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="None (Top Level)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None (Promote to Top Level)</SelectItem>
+                      {getAvailableParentsForEdit().map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Color</Label>
+                <div className="flex gap-2 flex-wrap">
+                  {COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      className={`w-8 h-8 rounded-full transition-transform ${formData.color === color ? 'ring-2 ring-offset-2 ring-primary scale-110' : ''}`}
+                      style={{ backgroundColor: color }}
+                      onClick={() => setFormData({ ...formData, color })}
+                    />
+                  ))}
+                </div>
+              </div>
+              <Button type="submit" className="w-full" disabled={updateCategory.isPending}>
+                {updateCategory.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
             </form>
           </DialogContent>
