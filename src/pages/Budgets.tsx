@@ -11,10 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Progress } from '@/components/ui/progress';
 import { Plus, Trash2, Target } from 'lucide-react';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { CategorySelect } from '@/components/categories/CategorySelect';
 
 export default function Budgets() {
   const { budgets, isLoading, createBudget, deleteBudget } = useBudgets();
-  const { expenseCategories } = useCategories();
+  const { expenseCategories, categories, getCategoryDisplayName } = useCategories();
   const { transactions } = useTransactions();
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<CreateBudgetData>({
@@ -36,9 +37,25 @@ export default function Budgets() {
     const monthStart = startOfMonth(now);
     const monthEnd = endOfMonth(now);
     
+    // Get the category and check if it's a parent
+    const category = categories.find(c => c.id === categoryId);
+    const subCategories = category ? categories.filter(c => c.parent_id === categoryId) : [];
+    const categoryIds = [categoryId, ...subCategories.map(c => c.id)];
+    
     return transactions
-      .filter(t => t.category_id === categoryId && t.type === 'expense' && new Date(t.date) >= monthStart && new Date(t.date) <= monthEnd)
+      .filter(t => 
+        categoryIds.includes(t.category_id || '') && 
+        t.type === 'expense' && 
+        new Date(t.date) >= monthStart && 
+        new Date(t.date) <= monthEnd
+      )
       .reduce((sum, t) => sum + Number(t.amount), 0);
+  };
+
+  // Get budget category display name
+  const getBudgetCategoryName = (budget: typeof budgets[0]) => {
+    if (!budget.categories) return 'Unknown';
+    return getCategoryDisplayName(budget.category_id);
   };
 
   return (
@@ -59,14 +76,13 @@ export default function Budgets() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label>Category</Label>
-                <Select value={formData.category_id} onValueChange={(v) => setFormData({ ...formData, category_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                  <SelectContent>
-                    {expenseCategories.map(cat => (
-                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CategorySelect
+                  categories={expenseCategories}
+                  value={formData.category_id || null}
+                  onValueChange={(v) => setFormData({ ...formData, category_id: v || '' })}
+                  type="expense"
+                  placeholder="Select category"
+                />
               </div>
               <div className="space-y-2">
                 <Label>Budget Amount</Label>
@@ -97,6 +113,7 @@ export default function Budgets() {
             const spent = getBudgetSpent(budget.category_id);
             const percentage = Math.min((spent / Number(budget.amount)) * 100, 100);
             const isOverBudget = spent > Number(budget.amount);
+            const displayName = getBudgetCategoryName(budget);
             
             return (
               <Card key={budget.id} className="border-border/50">
@@ -107,7 +124,7 @@ export default function Budgets() {
                         <Target className="w-4 h-4" style={{ color: budget.categories?.color }} />
                       </div>
                       <div>
-                        <CardTitle className="text-sm font-medium">{budget.categories?.name}</CardTitle>
+                        <CardTitle className="text-sm font-medium">{displayName}</CardTitle>
                         <p className="text-xs text-muted-foreground capitalize">{budget.period}</p>
                       </div>
                     </div>

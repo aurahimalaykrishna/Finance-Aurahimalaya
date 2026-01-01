@@ -5,15 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Transaction, CreateTransactionData } from '@/hooks/useTransactions';
+import { CategorySelect } from '@/components/categories/CategorySelect';
 import { format } from 'date-fns';
 import { CURRENCIES } from '@/lib/currencies';
-
-interface Category {
-  id: string;
-  name: string;
-  type: 'income' | 'expense';
-  color?: string | null;
-}
+import { Category } from '@/hooks/useCategories';
 
 interface EditTransactionDialogProps {
   open: boolean;
@@ -100,17 +95,12 @@ export function EditTransactionDialog({
           </div>
           <div className="space-y-2">
             <Label>Category</Label>
-            <Select 
-              value={formData.category_id || ''} 
-              onValueChange={(v) => setFormData({ ...formData, category_id: v || null })}
-            >
-              <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-              <SelectContent>
-                {filteredCategories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <CategorySelect
+              categories={filteredCategories}
+              value={formData.category_id || null}
+              onValueChange={(v) => setFormData({ ...formData, category_id: v })}
+              type={formData.type}
+            />
           </div>
           <div className="space-y-2">
             <Label>Description</Label>
