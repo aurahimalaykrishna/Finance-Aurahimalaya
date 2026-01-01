@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { ImportTransactionsDialog } from '@/components/transactions/ImportTransactionsDialog';
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
+import { ViewTransactionDialog } from '@/components/transactions/ViewTransactionDialog';
 import { getCurrencySymbol, CURRENCIES } from '@/lib/currencies';
 
 export default function Transactions() {
@@ -23,6 +24,7 @@ export default function Transactions() {
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [formData, setFormData] = useState<CreateTransactionData>({
@@ -233,6 +235,16 @@ export default function Transactions() {
         isPending={updateTransaction.isPending}
       />
 
+      <ViewTransactionDialog
+        open={!!viewingTransaction}
+        onOpenChange={(open) => !open && setViewingTransaction(null)}
+        transaction={viewingTransaction}
+        onEdit={() => {
+          setEditingTransaction(viewingTransaction);
+          setViewingTransaction(null);
+        }}
+      />
+
       <Card className="border-border/50">
         <CardContent className="p-0">
           <Table>
@@ -282,6 +294,9 @@ export default function Transactions() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => setViewingTransaction(t)}>
+                          <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => setEditingTransaction(t)}>
                           <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                         </Button>
