@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useCompanyContext } from '@/contexts/CompanyContext';
+import { useProfile } from '@/hooks/useProfile';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, Building2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -15,6 +16,7 @@ export default function Dashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { selectedCompanyId, selectedCompany, companies, isAllCompanies } = useCompanyContext();
+  const { profile } = useProfile();
   const { transactions } = useTransactions(selectedCompanyId);
   const { categories } = useCategories(selectedCompanyId);
 
@@ -79,8 +81,9 @@ export default function Dashboard() {
 
   const recentTransactions = transactions.slice(0, 5);
 
-  // Get currency symbol based on selected company
-  const currencySymbol = getCurrencySymbol(selectedCompany?.currency || 'NPR');
+  // Get currency symbol based on selected company or profile default
+  const defaultCurrency = selectedCompany?.currency || profile?.currency || 'NPR';
+  const currencySymbol = getCurrencySymbol(defaultCurrency);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -295,8 +298,8 @@ export default function Dashboard() {
 
       {/* Currency Converter */}
       <CurrencyConverter 
-        defaultFrom={selectedCompany?.currency || 'USD'} 
-        defaultTo={selectedCompany?.currency === 'NPR' ? 'USD' : 'NPR'} 
+        defaultFrom={defaultCurrency} 
+        defaultTo={defaultCurrency === 'NPR' ? 'USD' : 'NPR'} 
       />
       </div>
     </div>
