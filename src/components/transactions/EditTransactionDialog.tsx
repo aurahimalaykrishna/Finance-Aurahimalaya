@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Transaction, CreateTransactionData } from '@/hooks/useTransactions';
 import { format } from 'date-fns';
+import { CURRENCIES } from '@/lib/currencies';
 
 interface Category {
   id: string;
@@ -37,6 +38,7 @@ export function EditTransactionDialog({
     description: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     category_id: null,
+    currency: 'NPR',
   });
 
   useEffect(() => {
@@ -47,6 +49,7 @@ export function EditTransactionDialog({
         description: transaction.description || '',
         date: transaction.date,
         category_id: transaction.category_id,
+        currency: transaction.currency || 'NPR',
       });
     }
   }, [transaction]);
@@ -116,14 +119,29 @@ export function EditTransactionDialog({
               onChange={(e) => setFormData({ ...formData, description: e.target.value })} 
             />
           </div>
-          <div className="space-y-2">
-            <Label>Date</Label>
-            <Input 
-              type="date" 
-              value={formData.date} 
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
-              required 
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Input 
+                type="date" 
+                value={formData.date} 
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
+                required 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Select value={formData.currency || 'NPR'} onValueChange={(v) => setFormData({ ...formData, currency: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map(currency => (
+                    <SelectItem key={currency.code} value={currency.code}>
+                      {currency.symbol} {currency.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <Button type="submit" className="w-full" disabled={isPending}>
             {isPending ? 'Saving...' : 'Save Changes'}

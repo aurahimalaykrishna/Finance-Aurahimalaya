@@ -474,6 +474,7 @@ export type Database = {
           category_id: string | null
           company_id: string | null
           created_at: string | null
+          currency: string | null
           date: string
           description: string | null
           id: string
@@ -489,6 +490,7 @@ export type Database = {
           category_id?: string | null
           company_id?: string | null
           created_at?: string | null
+          currency?: string | null
           date?: string
           description?: string | null
           id?: string
@@ -504,6 +506,7 @@ export type Database = {
           category_id?: string | null
           company_id?: string | null
           created_at?: string | null
+          currency?: string | null
           date?: string
           description?: string | null
           id?: string
