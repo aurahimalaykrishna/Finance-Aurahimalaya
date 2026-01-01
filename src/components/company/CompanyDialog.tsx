@@ -5,7 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { Company, CreateCompanyData } from '@/hooks/useCompanies';
+import { CompanyImageUpload } from './CompanyImageUpload';
 import { CURRENCIES } from '@/lib/currencies';
 
 interface CompanyDialogProps {
@@ -36,6 +38,9 @@ export function CompanyDialog({ open, onOpenChange, company, onSave }: CompanyDi
     currency: 'NPR',
     fiscal_year_start: 1,
     is_default: false,
+    logo_url: null,
+    favicon_url: null,
+    address: null,
   });
 
   useEffect(() => {
@@ -45,6 +50,9 @@ export function CompanyDialog({ open, onOpenChange, company, onSave }: CompanyDi
         currency: company.currency || 'NPR',
         fiscal_year_start: company.fiscal_year_start || 1,
         is_default: company.is_default || false,
+        logo_url: company.logo_url || null,
+        favicon_url: company.favicon_url || null,
+        address: company.address || null,
       });
     } else {
       setFormData({
@@ -52,6 +60,9 @@ export function CompanyDialog({ open, onOpenChange, company, onSave }: CompanyDi
         currency: 'NPR',
         fiscal_year_start: 1,
         is_default: false,
+        logo_url: null,
+        favicon_url: null,
+        address: null,
       });
     }
   }, [company, open]);
@@ -65,7 +76,7 @@ export function CompanyDialog({ open, onOpenChange, company, onSave }: CompanyDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{company ? 'Edit Company' : 'Add Company'}</DialogTitle>
         </DialogHeader>
@@ -78,6 +89,31 @@ export function CompanyDialog({ open, onOpenChange, company, onSave }: CompanyDi
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Enter company name"
               required
+            />
+          </div>
+
+          <div className="flex gap-6">
+            <CompanyImageUpload
+              label="Company Logo"
+              value={formData.logo_url}
+              onChange={(url) => setFormData({ ...formData, logo_url: url })}
+            />
+            <CompanyImageUpload
+              label="Favicon"
+              value={formData.favicon_url}
+              onChange={(url) => setFormData({ ...formData, favicon_url: url })}
+              accept="image/png,image/x-icon,image/svg+xml"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address">Address</Label>
+            <Textarea
+              id="address"
+              value={formData.address || ''}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value || null })}
+              placeholder="Enter company address"
+              rows={2}
             />
           </div>
 

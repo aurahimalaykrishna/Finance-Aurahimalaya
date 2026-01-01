@@ -1,5 +1,6 @@
 import { Building2, ChevronDown, Plus, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +20,16 @@ export function CompanySwitcher() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="w-full justify-between px-2 h-10">
           <div className="flex items-center gap-2 truncate">
-            <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+            {selectedCompany?.logo_url ? (
+              <Avatar className="h-5 w-5">
+                <AvatarImage src={selectedCompany.logo_url} alt={selectedCompany.name} />
+                <AvatarFallback className="text-[10px]">
+                  {selectedCompany.name.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+            )}
             <span className="truncate text-sm">
               {isAllCompanies ? 'All Companies' : selectedCompany?.name || 'Select Company'}
             </span>
@@ -32,7 +42,10 @@ export function CompanySwitcher() {
           onClick={() => setSelectedCompanyId('all')}
           className="flex items-center justify-between"
         >
-          <span>All Companies</span>
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            <span>All Companies</span>
+          </div>
           {isAllCompanies && <Check className="h-4 w-4" />}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
@@ -43,6 +56,16 @@ export function CompanySwitcher() {
             className="flex items-center justify-between"
           >
             <div className="flex items-center gap-2">
+              {company.logo_url ? (
+                <Avatar className="h-5 w-5">
+                  <AvatarImage src={company.logo_url} alt={company.name} />
+                  <AvatarFallback className="text-[10px]">
+                    {company.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+              ) : (
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+              )}
               <span className="truncate">{company.name}</span>
               {company.is_default && (
                 <span className="text-xs text-muted-foreground">(default)</span>
