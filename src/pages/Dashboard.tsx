@@ -9,6 +9,7 @@ import { TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRi
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { getCurrencySymbol } from '@/lib/currencies';
+import { CurrencyConverter } from '@/components/currency/CurrencyConverter';
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
@@ -250,8 +251,10 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Recent Transactions */}
-      <Card className="border-border/50">
+      {/* Currency Converter & Recent Transactions */}
+      <div className="grid gap-6 lg:grid-cols-[1fr,400px]">
+        {/* Recent Transactions */}
+        <Card className="border-border/50">
         <CardHeader>
           <CardTitle className="text-lg">Recent Transactions</CardTitle>
         </CardHeader>
@@ -289,6 +292,13 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Currency Converter */}
+      <CurrencyConverter 
+        defaultFrom={selectedCompany?.currency || 'USD'} 
+        defaultTo={selectedCompany?.currency === 'NPR' ? 'USD' : 'NPR'} 
+      />
+      </div>
     </div>
   );
 }
