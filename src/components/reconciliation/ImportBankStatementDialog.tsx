@@ -122,7 +122,7 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
         complete: (results) => {
           const data = results.data as Record<string, string>[];
           if (data.length > 0) {
-            const cols = Object.keys(data[0]);
+            const cols = Object.keys(data[0]).filter(col => col && col.trim() !== '');
             setColumns(cols);
             setRawData(data);
             setSheets([]);
@@ -138,7 +138,7 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
     const sheet = wb.Sheets[sheetName];
     const json = XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { raw: false });
     if (json.length > 0) {
-      const cols = Object.keys(json[0]);
+      const cols = Object.keys(json[0]).filter(col => col && col.trim() !== '');
       setColumns(cols);
       setRawData(json);
       if (autoDetect) {
