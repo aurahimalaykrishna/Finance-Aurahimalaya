@@ -698,6 +698,23 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_user_companies: {
+        Args: { _user_id: string }
+        Returns: {
+          access_role: Database["public"]["Enums"]["app_role"]
+          address: string
+          created_at: string
+          currency: string
+          favicon_url: string
+          fiscal_year_start: number
+          id: string
+          is_default: boolean
+          logo_url: string
+          name: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
       get_user_company_access: {
         Args: { _user_id: string }
         Returns: {
