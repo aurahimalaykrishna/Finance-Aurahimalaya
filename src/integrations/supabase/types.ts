@@ -301,6 +301,7 @@ export type Database = {
           created_at: string | null
           granted_by: string | null
           id: string
+          role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
@@ -308,6 +309,7 @@ export type Database = {
           created_at?: string | null
           granted_by?: string | null
           id?: string
+          role?: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
@@ -315,6 +317,7 @@ export type Database = {
           created_at?: string | null
           granted_by?: string | null
           id?: string
+          role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: [
@@ -447,6 +450,7 @@ export type Database = {
       team_invitations: {
         Row: {
           accepted_at: string | null
+          company_id: string | null
           created_at: string | null
           email: string
           expires_at: string
@@ -457,6 +461,7 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          company_id?: string | null
           created_at?: string | null
           email: string
           expires_at?: string
@@ -467,6 +472,7 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          company_id?: string | null
           created_at?: string | null
           email?: string
           expires_at?: string
@@ -475,7 +481,15 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
           token?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "team_invitations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transaction_notes: {
         Row: {
@@ -655,6 +669,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_company_users: {
+        Args: { _company_id: string }
+        Returns: {
+          created_at: string
+          email: string
+          granted_by: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }[]
+      }
       get_team_members: {
         Args: { _owner_id: string }
         Returns: {
@@ -664,6 +688,20 @@ export type Database = {
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }[]
+      }
+      get_user_company_access: {
+        Args: { _user_id: string }
+        Returns: {
+          company_id: string
+          company_name: string
+          created_at: string
+          granted_by: string
+          role: Database["public"]["Enums"]["app_role"]
+        }[]
+      }
+      get_user_company_role: {
+        Args: { _company_id: string; _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
       }
       get_user_role: {
         Args: { _user_id: string }

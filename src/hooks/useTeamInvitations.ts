@@ -13,6 +13,12 @@ export interface TeamInvitation {
   expires_at: string;
   accepted_at: string | null;
   created_at: string;
+  company_id: string | null;
+}
+
+interface CompanyAccessInput {
+  companyId: string;
+  role: AppRole;
 }
 
 export function useTeamInvitations() {
@@ -36,16 +42,47 @@ export function useTeamInvitations() {
   });
 
   const sendInvitation = useMutation({
-    mutationFn: async ({ email, role }: { email: string; role: AppRole }) => {
-      const { error } = await supabase
+    mutationFn: async ({ 
+      email, 
+      role,
+      companyAccess = []
+    }: { 
+      email: string; 
+      role: AppRole;
+      companyAccess?: CompanyAccessInput[];
+    }) => {
+      // Create the main invitation
+      const { data: invitation, error } = await supabase
         .from('team_invitations')
         .insert({
           email,
           role,
           invited_by: user!.id,
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // If company access is specified, store it for later processing
+      // The company_access entries will be created when the invitation is accepted
+      // For now, we store company-specific invitations separately
+      if (companyAccess.length > 0) {
+        const companyInvitations = companyAccess.map(ca => ({
+          email,
+          role: ca.role,
+          invited_by: user!.id,
+          company_id: ca.companyId,
+        }));
+
+        const { error: companyError } = await supabase
+          .from('team_invitations')
+          .insert(companyInvitations);
+
+        if (companyError) throw companyError;
+      }
+
+      return invitation;
     },
     onSuccess: (_, { email }) => {
       queryClient.invalidateQueries({ queryKey: ['team-invitations'] });
@@ -76,7 +113,7 @@ export function useTeamInvitations() {
 
   const acceptInvitation = useMutation({
     mutationFn: async (token: string) => {
-      // Get the invitation
+      // Get all invitations for this token's email
       const { data: invitation, error: fetchError } = await supabase
         .from('team_invitations')
         .select('*')
@@ -90,7 +127,7 @@ export function useTeamInvitations() {
         throw new Error('Invitation has expired');
       }
 
-      // Create user role
+      // Create user role (global role)
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
@@ -101,17 +138,56 @@ export function useTeamInvitations() {
 
       if (roleError) throw roleError;
 
-      // Mark invitation as accepted
+      // If this is a company-specific invitation, also create company_access
+      if (invitation.company_id) {
+        const { error: accessError } = await supabase
+          .from('company_access')
+          .insert({
+            user_id: user!.id,
+            company_id: invitation.company_id,
+            role: invitation.role,
+            granted_by: invitation.invited_by,
+          });
+
+        if (accessError) throw accessError;
+      }
+
+      // Get all pending invitations for this email and mark them as accepted
       const { error: updateError } = await supabase
         .from('team_invitations')
         .update({ accepted_at: new Date().toISOString() })
-        .eq('id', invitation.id);
+        .eq('email', invitation.email)
+        .is('accepted_at', null);
 
       if (updateError) throw updateError;
+
+      // Process remaining company-specific invitations
+      const { data: companyInvitations } = await supabase
+        .from('team_invitations')
+        .select('*')
+        .eq('email', invitation.email)
+        .not('company_id', 'is', null);
+
+      if (companyInvitations && companyInvitations.length > 0) {
+        const companyAccessEntries = companyInvitations.map(inv => ({
+          user_id: user!.id,
+          company_id: inv.company_id!,
+          role: inv.role,
+          granted_by: inv.invited_by,
+        }));
+
+        await supabase
+          .from('company_access')
+          .upsert(companyAccessEntries, { 
+            onConflict: 'user_id,company_id',
+            ignoreDuplicates: true 
+          });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-role'] });
       queryClient.invalidateQueries({ queryKey: ['team-invitations'] });
+      queryClient.invalidateQueries({ queryKey: ['company-access'] });
       toast({ title: 'Invitation accepted', description: 'You have joined the team' });
     },
     onError: (error: Error) => {

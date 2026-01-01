@@ -5,20 +5,29 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { useTeamInvitations } from '@/hooks/useTeamInvitations';
+import { useCompanies } from '@/hooks/useCompanies';
+import { useCompanyUsers } from '@/hooks/useCompanyAccess';
 import { TeamMemberCard } from '@/components/users/TeamMemberCard';
 import { PendingInvitationCard } from '@/components/users/PendingInvitationCard';
 import { InviteUserDialog } from '@/components/users/InviteUserDialog';
 import { RoleBadge } from '@/components/users/RoleBadge';
 import { usePermissions } from '@/contexts/PermissionContext';
-import { Users, Mail, Shield, Search } from 'lucide-react';
+import { Users, Mail, Shield, Search, Building2 } from 'lucide-react';
 
 export default function UserManagement() {
   const { teamMembers, isLoading: membersLoading, userRole } = useUserRoles();
   const { invitations, isLoading: invitationsLoading } = useTeamInvitations();
+  const { companies } = useCompanies();
   const { canManageUsers } = usePermissions();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('all');
+
+  // Get users for the selected company
+  const { companyUsers } = useCompanyUsers(
+    selectedCompanyFilter !== 'all' ? selectedCompanyFilter : undefined
+  );
 
   const filteredMembers = useMemo(() => {
     return teamMembers.filter((member) => {
@@ -49,7 +58,7 @@ export default function UserManagement() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -75,6 +84,17 @@ export default function UserManagement() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              Companies
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{companies.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Shield className="w-4 h-4" />
               Your Role
             </CardTitle>
@@ -88,6 +108,7 @@ export default function UserManagement() {
       <Tabs defaultValue="members">
         <TabsList>
           <TabsTrigger value="members">Team Members ({teamMembers.length})</TabsTrigger>
+          <TabsTrigger value="company-access">Company Access</TabsTrigger>
           <TabsTrigger value="invitations">Pending Invitations ({invitations.length})</TabsTrigger>
           <TabsTrigger value="roles">Role Permissions</TabsTrigger>
         </TabsList>
@@ -136,6 +157,60 @@ export default function UserManagement() {
             filteredMembers.map((member) => (
               <TeamMemberCard key={member.user_id} member={member} />
             ))
+          )}
+        </TabsContent>
+
+        <TabsContent value="company-access" className="space-y-4">
+          {/* Company Filter */}
+          <div className="flex gap-4">
+            <Select value={selectedCompanyFilter} onValueChange={setSelectedCompanyFilter}>
+              <SelectTrigger className="w-[250px]">
+                <SelectValue placeholder="Select a company" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Companies</SelectItem>
+                {companies.map((company) => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedCompanyFilter === 'all' ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Building2 className="w-12 h-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">Select a company to view user access</p>
+              </CardContent>
+            </Card>
+          ) : companyUsers.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Users className="w-12 h-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No users have access to this company</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Grant access from the Team Members tab
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {companyUsers.map((cu) => (
+                <Card key={cu.user_id}>
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{cu.email}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Granted on {new Date(cu.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <RoleBadge role={cu.role} />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </TabsContent>
 
