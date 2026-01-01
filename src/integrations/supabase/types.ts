@@ -264,31 +264,40 @@ export type Database = {
       }
       companies: {
         Row: {
+          address: string | null
           created_at: string | null
           currency: string | null
+          favicon_url: string | null
           fiscal_year_start: number | null
           id: string
           is_default: boolean | null
+          logo_url: string | null
           name: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          address?: string | null
           created_at?: string | null
           currency?: string | null
+          favicon_url?: string | null
           fiscal_year_start?: number | null
           id?: string
           is_default?: boolean | null
+          logo_url?: string | null
           name: string
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          address?: string | null
           created_at?: string | null
           currency?: string | null
+          favicon_url?: string | null
           fiscal_year_start?: number | null
           id?: string
           is_default?: boolean | null
+          logo_url?: string | null
           name?: string
           updated_at?: string | null
           user_id?: string

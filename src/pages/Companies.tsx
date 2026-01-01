@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Plus, Trash2, Pencil, Star } from 'lucide-react';
+import { Plus, Trash2, Pencil, Star, Building2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCompanies, Company } from '@/hooks/useCompanies';
 import { CompanyDialog } from '@/components/company/CompanyDialog';
 
@@ -55,14 +56,30 @@ export default function Companies() {
         {companies.map((company) => (
           <Card key={company.id} className="relative">
             <CardHeader className="pb-2">
-              <div className="flex items-start justify-between">
-                <CardTitle className="text-lg">{company.name}</CardTitle>
-                {company.is_default && (
-                  <Badge variant="secondary" className="shrink-0">
-                    <Star className="h-3 w-3 mr-1 fill-current" />
-                    Default
-                  </Badge>
-                )}
+              <div className="flex items-start gap-3">
+                <Avatar className="h-12 w-12 rounded-lg">
+                  <AvatarImage src={company.logo_url || undefined} alt={company.name} />
+                  <AvatarFallback className="rounded-lg bg-primary/10">
+                    <Building2 className="h-6 w-6 text-primary" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-lg truncate">{company.name}</CardTitle>
+                    {company.is_default && (
+                      <Badge variant="secondary" className="shrink-0">
+                        <Star className="h-3 w-3 mr-1 fill-current" />
+                        Default
+                      </Badge>
+                    )}
+                  </div>
+                  {company.address && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1 truncate">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{company.address}</span>
+                    </p>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">

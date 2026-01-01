@@ -10,6 +10,9 @@ export interface Company {
   currency: string | null;
   fiscal_year_start: number | null;
   is_default: boolean | null;
+  logo_url: string | null;
+  favicon_url: string | null;
+  address: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -19,6 +22,9 @@ export interface CreateCompanyData {
   currency?: string;
   fiscal_year_start?: number;
   is_default?: boolean;
+  logo_url?: string | null;
+  favicon_url?: string | null;
+  address?: string | null;
 }
 
 export function useCompanies() {

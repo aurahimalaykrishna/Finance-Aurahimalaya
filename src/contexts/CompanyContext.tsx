@@ -51,6 +51,16 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
 
   const isAllCompanies = selectedCompanyId === 'all';
 
+  // Dynamic favicon based on selected company
+  useEffect(() => {
+    const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+    if (link && selectedCompany?.favicon_url) {
+      link.href = selectedCompany.favicon_url;
+    } else if (link) {
+      link.href = '/favicon.ico';
+    }
+  }, [selectedCompany?.favicon_url]);
+
   return (
     <CompanyContext.Provider
       value={{
