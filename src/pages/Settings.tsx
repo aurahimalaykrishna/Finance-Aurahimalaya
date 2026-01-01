@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useProfile } from '@/hooks/useProfile';
+import { useCompanyContext } from '@/contexts/CompanyContext';
+import { useCompanies } from '@/hooks/useCompanies';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +11,12 @@ import { CURRENCIES } from '@/lib/currencies';
 
 export default function Settings() {
   const { profile, isLoading, updateProfile } = useProfile();
+  const { selectedCompany, isAllCompanies } = useCompanyContext();
+  const { updateCompany } = useCompanies();
+  
   const [businessName, setBusinessName] = useState('');
   const [currency, setCurrency] = useState('NPR');
+  const [companyCurrency, setCompanyCurrency] = useState('NPR');
 
   useEffect(() => {
     if (profile) {
@@ -19,8 +25,23 @@ export default function Settings() {
     }
   }, [profile]);
 
-  const handleSave = async () => {
+  useEffect(() => {
+    if (selectedCompany) {
+      setCompanyCurrency(selectedCompany.currency || 'NPR');
+    }
+  }, [selectedCompany]);
+
+  const handleSaveProfile = async () => {
     await updateProfile.mutateAsync({ business_name: businessName, currency });
+  };
+
+  const handleSaveCompanyCurrency = async () => {
+    if (selectedCompany) {
+      await updateCompany.mutateAsync({ 
+        id: selectedCompany.id, 
+        data: { currency: companyCurrency }
+      });
+    }
   };
 
   if (isLoading) {
@@ -54,6 +75,7 @@ export default function Settings() {
           </div>
           <div className="space-y-2">
             <Label>Default Currency</Label>
+            <p className="text-xs text-muted-foreground">Used when viewing "All Companies"</p>
             <Select value={currency} onValueChange={setCurrency}>
               <SelectTrigger>
                 <SelectValue />
@@ -67,11 +89,41 @@ export default function Settings() {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={handleSave} disabled={updateProfile.isPending}>
+          <Button onClick={handleSaveProfile} disabled={updateProfile.isPending}>
             {updateProfile.isPending ? 'Saving...' : 'Save Changes'}
           </Button>
         </CardContent>
       </Card>
+
+      {!isAllCompanies && selectedCompany && (
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle>Company Settings: {selectedCompany.name}</CardTitle>
+            <CardDescription>Settings for the currently selected company</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Company Currency</Label>
+              <p className="text-xs text-muted-foreground">Currency used for this company's transactions and reports</p>
+              <Select value={companyCurrency} onValueChange={setCompanyCurrency}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>
+                      {c.code} - {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={handleSaveCompanyCurrency} disabled={updateCompany.isPending}>
+              {updateCompany.isPending ? 'Updating...' : 'Update Company Currency'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
