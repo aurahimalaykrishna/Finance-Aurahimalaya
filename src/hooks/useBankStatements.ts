@@ -41,7 +41,6 @@ export function useBankStatements(bankAccountId?: string | null) {
       const { data, error } = await supabase
         .from('bank_statements')
         .select('*')
-        .eq('user_id', user!.id)
         .eq('bank_account_id', bankAccountId)
         .order('statement_date', { ascending: false });
 

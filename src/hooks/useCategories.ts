@@ -35,7 +35,6 @@ export function useCategories(companyId?: string | null) {
       let query = supabase
         .from('categories')
         .select('*')
-        .eq('user_id', user!.id)
         .order('name');
 
       if (companyId) {
