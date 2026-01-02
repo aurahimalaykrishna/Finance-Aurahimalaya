@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransactions } from '@/hooks/useTransactions';
@@ -11,6 +11,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieCha
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { getCurrencySymbol } from '@/lib/currencies';
 import { CurrencyConverter } from '@/components/currency/CurrencyConverter';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
@@ -19,6 +21,7 @@ export default function Dashboard() {
   const { profile } = useProfile();
   const { transactions } = useTransactions(selectedCompanyId);
   const { categories } = useCategories(selectedCompanyId);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -30,8 +33,21 @@ export default function Dashboard() {
     return <div className="flex items-center justify-center min-h-[50vh]">Loading...</div>;
   }
 
-  const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
-  const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
+  // Filter transactions by date range
+  const filteredTransactions = useMemo(() => {
+    if (!dateRange?.from) return transactions;
+    return transactions.filter(t => {
+      const date = new Date(t.date);
+      const from = new Date(dateRange.from!);
+      from.setHours(0, 0, 0, 0);
+      const to = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from!);
+      to.setHours(23, 59, 59, 999);
+      return date >= from && date <= to;
+    });
+  }, [transactions, dateRange]);
+
+  const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalExpenses = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
   const netProfit = totalIncome - totalExpenses;
   const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : '0';
 
@@ -41,7 +57,7 @@ export default function Dashboard() {
     const monthStart = startOfMonth(date);
     const monthEnd = endOfMonth(date);
     
-    const monthTransactions = transactions.filter(t => {
+    const monthTransactions = filteredTransactions.filter(t => {
       const tDate = new Date(t.date);
       return tDate >= monthStart && tDate <= monthEnd;
     });
@@ -58,14 +74,14 @@ export default function Dashboard() {
     .filter(c => c.type === 'expense')
     .map(cat => ({
       name: cat.name,
-      value: transactions.filter(t => t.category_id === cat.id).reduce((sum, t) => sum + Number(t.amount), 0),
+      value: filteredTransactions.filter(t => t.category_id === cat.id).reduce((sum, t) => sum + Number(t.amount), 0),
       color: cat.color,
     }))
     .filter(c => c.value > 0);
 
   // Company comparison data (only when viewing all companies)
   const companyData = isAllCompanies ? companies.map(company => {
-    const companyTransactions = transactions.filter(t => t.company_id === company.id);
+    const companyTransactions = filteredTransactions.filter(t => t.company_id === company.id);
     const income = companyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
     const expenses = companyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
     return {
@@ -79,7 +95,7 @@ export default function Dashboard() {
     };
   }) : [];
 
-  const recentTransactions = transactions.slice(0, 5);
+  const recentTransactions = filteredTransactions.slice(0, 5);
 
   // Get currency symbol based on selected company or profile default
   const defaultCurrency = selectedCompany?.currency || profile?.currency || 'NPR';
@@ -87,13 +103,21 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Current View Indicator */}
-      {isAllCompanies && (
-        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Viewing aggregated data from all {companies.length} companies</span>
+      {/* Date Range Filter */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex items-center gap-4">
+          {isAllCompanies && (
+            <div className="bg-primary/10 border border-primary/20 rounded-lg px-3 py-2 flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">All {companies.length} companies</span>
+            </div>
+          )}
         </div>
-      )}
+        <DateRangePicker
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+        />
+      </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
