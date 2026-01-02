@@ -15,6 +15,7 @@ import { useBankAccounts } from '@/hooks/useBankAccounts';
 import { useBankStatements } from '@/hooks/useBankStatements';
 import { useReconciliation } from '@/hooks/useReconciliation';
 import { useTransactions } from '@/hooks/useTransactions';
+import { useCompanies } from '@/hooks/useCompanies';
 import { BankAccountDialog } from '@/components/reconciliation/BankAccountDialog';
 import { ImportBankStatementDialog } from '@/components/reconciliation/ImportBankStatementDialog';
 import { ReconciliationWorkspace } from '@/components/reconciliation/ReconciliationWorkspace';
@@ -28,6 +29,13 @@ export default function Reconciliation() {
   const { bankAccounts, isLoading: loadingAccounts, createBankAccount, updateBankAccount, deleteBankAccount } = useBankAccounts(companyId);
   const { reconciliationSessions, createSession, completeSession, deleteSession, findMatches } = useReconciliation(companyId);
   const { transactions } = useTransactions(companyId);
+  const { companies } = useCompanies();
+
+  // Helper to get company name by ID
+  const getCompanyName = (companyId: string | null) => {
+    if (!companyId) return null;
+    return companies.find(c => c.id === companyId)?.name || null;
+  };
 
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
@@ -252,6 +260,9 @@ export default function Reconciliation() {
                     <div>
                       <h3 className="font-semibold">{account.account_name}</h3>
                       <p className="text-sm text-muted-foreground">{account.bank_name}</p>
+                      {getCompanyName(account.company_id) && (
+                        <p className="text-xs text-primary font-medium">{getCompanyName(account.company_id)}</p>
+                      )}
                       {account.account_number && (
                         <p className="text-xs text-muted-foreground">****{account.account_number}</p>
                       )}
