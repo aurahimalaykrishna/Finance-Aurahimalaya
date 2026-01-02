@@ -102,10 +102,56 @@ export function useBankStatements(bankAccountId?: string | null) {
     },
   });
 
+  // Multi-match: match one statement to multiple transactions
+  const matchStatementToMultiple = useMutation({
+    mutationFn: async ({ statementId, transactionIds }: { statementId: string; transactionIds: string[] }) => {
+      // Insert junction records
+      const matchRecords = transactionIds.map(txId => ({
+        bank_statement_id: statementId,
+        transaction_id: txId,
+        user_id: user!.id,
+      }));
+      
+      const { error: matchError } = await supabase
+        .from('statement_transaction_matches')
+        .insert(matchRecords as any);
+      if (matchError) throw matchError;
+
+      // Mark statement as matched (keep matched_transaction_id null for multi-match)
+      const { error: statementError } = await supabase
+        .from('bank_statements')
+        .update({ is_matched: true } as any)
+        .eq('id', statementId);
+      if (statementError) throw statementError;
+
+      // Mark all transactions as reconciled
+      const { error: txError } = await supabase
+        .from('transactions')
+        .update({ is_reconciled: true, reconciled_at: new Date().toISOString(), bank_statement_id: statementId } as any)
+        .in('id', transactionIds);
+      if (txError) throw txError;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['bank-statements'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['statement-matches'] });
+      toast({ title: `${variables.transactionIds.length} transactions matched to statement` });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error matching transactions', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const unmatchStatement = useMutation({
     mutationFn: async (statementId: string) => {
       const statement = bankStatements.find(s => s.id === statementId);
       
+      // Delete any junction records first
+      await supabase
+        .from('statement_transaction_matches')
+        .delete()
+        .eq('bank_statement_id', statementId);
+
       // Update bank statement
       const { error: statementError } = await supabase
         .from('bank_statements')
@@ -113,7 +159,7 @@ export function useBankStatements(bankAccountId?: string | null) {
         .eq('id', statementId);
       if (statementError) throw statementError;
 
-      // Update transaction if there was one matched
+      // Update single matched transaction if there was one
       if (statement?.matched_transaction_id) {
         const { error: txError } = await supabase
           .from('transactions')
@@ -121,10 +167,18 @@ export function useBankStatements(bankAccountId?: string | null) {
           .eq('id', statement.matched_transaction_id);
         if (txError) throw txError;
       }
+
+      // Also unreconcile any transactions linked via junction table
+      const { error: txMultiError } = await supabase
+        .from('transactions')
+        .update({ is_reconciled: false, reconciled_at: null, bank_statement_id: null } as any)
+        .eq('bank_statement_id', statementId);
+      if (txMultiError) throw txMultiError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bank-statements'] });
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['statement-matches'] });
       toast({ title: 'Match removed' });
     },
     onError: (error: Error) => {
@@ -154,6 +208,7 @@ export function useBankStatements(bankAccountId?: string | null) {
     isLoading,
     createBulkStatements,
     matchStatement,
+    matchStatementToMultiple,
     unmatchStatement,
     deleteStatements,
   };

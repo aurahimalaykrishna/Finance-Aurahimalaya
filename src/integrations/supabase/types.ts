@@ -456,6 +456,30 @@ export type Database = {
           },
         ]
       }
+      statement_transaction_matches: {
+        Row: {
+          bank_statement_id: string
+          created_at: string | null
+          id: string
+          transaction_id: string
+          user_id: string
+        }
+        Insert: {
+          bank_statement_id: string
+          created_at?: string | null
+          id?: string
+          transaction_id: string
+          user_id: string
+        }
+        Update: {
+          bank_statement_id?: string
+          created_at?: string | null
+          id?: string
+          transaction_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       team_invitations: {
         Row: {
           accepted_at: string | null
