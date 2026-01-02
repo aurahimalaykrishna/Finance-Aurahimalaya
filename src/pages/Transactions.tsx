@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useTransactions, CreateTransactionData, Transaction } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useCompanyContext } from '@/contexts/CompanyContext';
@@ -13,10 +13,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import { DateRange } from 'react-day-picker';
 import { ImportTransactionsDialog } from '@/components/transactions/ImportTransactionsDialog';
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
 import { ViewTransactionDialog } from '@/components/transactions/ViewTransactionDialog';
 import { CategorySelect } from '@/components/categories/CategorySelect';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { getCurrencySymbol, CURRENCIES } from '@/lib/currencies';
 import { exportToCSV, exportToExcel } from '@/utils/exportUtils';
 
@@ -30,6 +32,7 @@ export default function Transactions() {
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [formData, setFormData] = useState<CreateTransactionData>({
     type: 'expense',
     amount: 0,
@@ -55,12 +58,26 @@ export default function Transactions() {
     await createBulkTransactions.mutateAsync(dataWithCompany);
   }, [createBulkTransactions, selectedCompanyId]);
 
-  const filteredTransactions = transactions.filter(t => {
-    const matchesSearch = t.description?.toLowerCase().includes(search.toLowerCase()) ||
-      t.categories?.name.toLowerCase().includes(search.toLowerCase());
-    const matchesType = typeFilter === 'all' || t.type === typeFilter;
-    return matchesSearch && matchesType;
-  });
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      const matchesSearch = t.description?.toLowerCase().includes(search.toLowerCase()) ||
+        t.categories?.name.toLowerCase().includes(search.toLowerCase());
+      const matchesType = typeFilter === 'all' || t.type === typeFilter;
+      
+      // Date range filter
+      let matchesDate = true;
+      if (dateRange?.from) {
+        const date = new Date(t.date);
+        const from = new Date(dateRange.from);
+        from.setHours(0, 0, 0, 0);
+        const to = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
+        to.setHours(23, 59, 59, 999);
+        matchesDate = date >= from && date <= to;
+      }
+      
+      return matchesSearch && matchesType && matchesDate;
+    });
+  }, [transactions, search, typeFilter, dateRange]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,6 +153,10 @@ export default function Transactions() {
               <SelectItem value="expense">Expense</SelectItem>
             </SelectContent>
           </Select>
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+          />
         </div>
         
         <div className="flex gap-2">
