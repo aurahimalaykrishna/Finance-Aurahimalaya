@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { BankAccount, CreateBankAccountData } from '@/hooks/useBankAccounts';
 import { CURRENCIES } from '@/lib/currencies';
+import { useCompanies } from '@/hooks/useCompanies';
 
 interface BankAccountDialogProps {
   open: boolean;
@@ -24,6 +25,8 @@ export function BankAccountDialog({
   companyId,
   companyCurrency = 'NPR'
 }: BankAccountDialogProps) {
+  const { companies } = useCompanies();
+  const showCompanySelector = !companyId; // Show selector when "All Companies" is selected
   const [formData, setFormData] = useState<CreateBankAccountData>({
     account_name: '',
     account_number: '',
@@ -71,6 +74,28 @@ export function BankAccountDialog({
           <DialogTitle>{account ? 'Edit Bank Account' : 'Add Bank Account'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {showCompanySelector && (
+            <div className="space-y-2">
+              <Label htmlFor="company">Company *</Label>
+              <Select
+                value={formData.company_id || ''}
+                onValueChange={(value) => setFormData({ ...formData, company_id: value })}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select company..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="account_name">Account Name *</Label>
             <Input
