@@ -38,7 +38,6 @@ export function useBankAccounts(companyId?: string | null) {
       let query = supabase
         .from('bank_accounts')
         .select('*')
-        .eq('user_id', user!.id)
         .order('account_name');
 
       if (companyId) {

@@ -63,7 +63,6 @@ export function useTransactions(companyId?: string | null) {
             name
           )
         `)
-        .eq('user_id', user!.id)
         .order('date', { ascending: false });
 
       // Filter by company if specified (not 'all')
