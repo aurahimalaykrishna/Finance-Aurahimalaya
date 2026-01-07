@@ -49,7 +49,7 @@ export default function Reconciliation() {
   const [closingBalance, setClosingBalance] = useState<number>(0);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
-  const { bankStatements, createBulkStatements, matchStatement, matchStatementToMultiple, unmatchStatement } = useBankStatements(selectedAccountId);
+  const { bankStatements, createBulkStatements, matchStatement, matchStatementToMultiple, matchMultipleStatements, unmatchStatement } = useBankStatements(selectedAccountId);
 
   // Filter transactions by date range
   const filteredTransactions = useMemo(() => {
@@ -225,6 +225,7 @@ export default function Reconciliation() {
                   transactions={filteredTransactions}
                   onMatch={(statementId, transactionId) => matchStatement.mutate({ statementId, transactionId })}
                   onMultiMatch={(statementId, transactionIds) => matchStatementToMultiple.mutate({ statementId, transactionIds })}
+                  onMultiStatementsMatch={(statementIds, transactionIds) => matchMultipleStatements.mutate({ statementIds, transactionIds })}
                   onUnmatch={(statementId) => unmatchStatement.mutate(statementId)}
                   onAutoMatch={handleAutoMatch}
                   currencySymbol={currencySymbol}
