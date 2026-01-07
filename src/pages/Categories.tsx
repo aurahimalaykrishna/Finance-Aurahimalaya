@@ -43,10 +43,22 @@ export default function Categories() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const companyId = isShared ? undefined : (selectedCompanyId || selectedFormCompanyId || companies[0]?.id);
-    if (!isShared && !companyId) {
+    
+    let companyId: string | undefined;
+    
+    if (formData.parent_id) {
+      // For sub-categories, inherit parent's company_id
+      const parentCategory = categories.find(c => c.id === formData.parent_id);
+      companyId = parentCategory?.company_id ?? undefined;
+    } else {
+      // For top-level categories, use isShared checkbox
+      companyId = isShared ? undefined : (selectedCompanyId || selectedFormCompanyId || companies[0]?.id);
+    }
+    
+    if (!isShared && !formData.parent_id && !companyId) {
       return;
     }
+    
     await createCategory.mutateAsync({ ...formData, company_id: companyId });
     setOpen(false);
     setSelectedFormCompanyId(null);
@@ -85,6 +97,9 @@ export default function Categories() {
   };
 
   const handleAddSubCategory = (parent: Category) => {
+    // If parent is shared (company_id is null), sub-category should also be shared
+    setIsShared(parent.company_id === null);
+    
     setFormData({
       name: '',
       type: parent.type,
