@@ -91,6 +91,7 @@ export function useCategories(companyId?: string | null) {
     mutationFn: async (data: CreateCategoryData) => {
       const { error } = await supabase.from('categories').insert({
         ...data,
+        company_id: data.company_id || null,
         user_id: user!.id,
       } as any);
       if (error) throw error;

@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Trash2, FolderOpen, ChevronRight, ChevronDown, FolderPlus, Pencil } from 'lucide-react';
+import { Plus, Trash2, FolderOpen, ChevronRight, ChevronDown, FolderPlus, Pencil, Globe } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
@@ -31,6 +32,7 @@ export default function Categories() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [selectedFormCompanyId, setSelectedFormCompanyId] = useState<string | null>(null);
+  const [isShared, setIsShared] = useState(false);
   const [formData, setFormData] = useState<CreateCategoryData>({
     name: '',
     type: 'expense',
@@ -41,13 +43,14 @@ export default function Categories() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const companyId = selectedCompanyId || selectedFormCompanyId || companies[0]?.id;
-    if (!companyId) {
+    const companyId = isShared ? undefined : (selectedCompanyId || selectedFormCompanyId || companies[0]?.id);
+    if (!isShared && !companyId) {
       return;
     }
     await createCategory.mutateAsync({ ...formData, company_id: companyId });
     setOpen(false);
     setSelectedFormCompanyId(null);
+    setIsShared(false);
     setFormData({ name: '', type: 'expense', color: COLORS[0], icon: 'folder', parent_id: null });
   };
 
@@ -131,10 +134,18 @@ export default function Categories() {
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${category.color}20` }}>
               <FolderOpen className="w-4 h-4" style={{ color: category.color }} />
             </div>
-            <div>
-              <p className="font-medium text-sm">{category.name}</p>
-              <p className="text-xs text-muted-foreground">Sub-category</p>
-            </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-sm">{category.name}</p>
+                  {!category.company_id && (
+                    <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                      <Globe className="w-3 h-3 mr-1" />
+                      Shared
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">Sub-category</p>
+              </div>
           </div>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" onClick={() => handleEdit(category)} title="Edit sub-category">
@@ -170,7 +181,15 @@ export default function Categories() {
                 <FolderOpen className="w-5 h-5" style={{ color: category.color }} />
               </div>
               <div>
-                <p className="font-medium">{category.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium">{category.name}</p>
+                  {!category.company_id && (
+                    <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                      <Globe className="w-3 h-3 mr-1" />
+                      Shared
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground capitalize">
                   {category.type}
                   {hasChildren && ` • ${subCategories.length} sub-categor${subCategories.length === 1 ? 'y' : 'ies'}`}
@@ -232,6 +251,7 @@ export default function Categories() {
           if (!isOpen) {
             setFormData({ name: '', type: 'expense', color: COLORS[0], icon: 'folder', parent_id: null });
             setSelectedFormCompanyId(null);
+            setIsShared(false);
           }
         }}>
           <DialogTrigger asChild>
@@ -244,7 +264,21 @@ export default function Categories() {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!selectedCompanyId && companies.length > 0 && (
+              {!formData.parent_id && (
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50">
+                  <div>
+                    <Label className="text-sm font-medium">Share with all companies</Label>
+                    <p className="text-xs text-muted-foreground">Category will be available in all your companies</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isShared}
+                    onChange={(e) => setIsShared(e.target.checked)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                </div>
+              )}
+              {!isShared && !selectedCompanyId && companies.length > 0 && (
                 <div className="space-y-2">
                   <Label>Company</Label>
                   <Select
