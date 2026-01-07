@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useCategories, CreateCategoryData, Category } from '@/hooks/useCategories';
+import { useCompanyContext } from '@/contexts/CompanyContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +13,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export default function Categories() {
+  const { selectedCompanyId, companies } = useCompanyContext();
   const { 
     categories, 
     incomeCategories, 
@@ -28,6 +30,7 @@ export default function Categories() {
   const [editOpen, setEditOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [selectedFormCompanyId, setSelectedFormCompanyId] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateCategoryData>({
     name: '',
     type: 'expense',
@@ -38,8 +41,13 @@ export default function Categories() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createCategory.mutateAsync(formData);
+    const companyId = selectedCompanyId || selectedFormCompanyId || companies[0]?.id;
+    if (!companyId) {
+      return;
+    }
+    await createCategory.mutateAsync({ ...formData, company_id: companyId });
     setOpen(false);
+    setSelectedFormCompanyId(null);
     setFormData({ name: '', type: 'expense', color: COLORS[0], icon: 'folder', parent_id: null });
   };
 
@@ -223,6 +231,7 @@ export default function Categories() {
           setOpen(isOpen);
           if (!isOpen) {
             setFormData({ name: '', type: 'expense', color: COLORS[0], icon: 'folder', parent_id: null });
+            setSelectedFormCompanyId(null);
           }
         }}>
           <DialogTrigger asChild>
@@ -235,6 +244,26 @@ export default function Categories() {
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {!selectedCompanyId && companies.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Company</Label>
+                  <Select
+                    value={selectedFormCompanyId || ''}
+                    onValueChange={setSelectedFormCompanyId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Name</Label>
                 <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
