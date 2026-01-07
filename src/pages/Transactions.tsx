@@ -238,7 +238,7 @@ export default function Transactions() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Date</Label>
+                    <Label>Transaction Date</Label>
                     <Input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} required />
                   </div>
                   <div className="space-y-2">
@@ -308,7 +308,8 @@ export default function Transactions() {
                 <TableHead>Description</TableHead>
                 {isAllCompanies && <TableHead>Company</TableHead>}
                 <TableHead>Category</TableHead>
-                <TableHead>Date</TableHead>
+                <TableHead>Transaction Date</TableHead>
+                <TableHead>Entry Date</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead className="w-[100px]"></TableHead>
               </TableRow>
@@ -343,6 +344,7 @@ export default function Transactions() {
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{format(new Date(t.date), 'MMM dd, yyyy')}</TableCell>
+                    <TableCell className="text-muted-foreground">{t.created_at ? format(new Date(t.created_at), 'MMM dd, yyyy') : '-'}</TableCell>
                     <TableCell className={`text-right font-semibold ${t.type === 'income' ? 'text-success' : 'text-destructive'}`}>
                       {t.type === 'income' ? '+' : '-'}{getTransactionCurrency(t)}{Number(t.amount).toLocaleString()}
                     </TableCell>
@@ -363,7 +365,7 @@ export default function Transactions() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={isAllCompanies ? 7 : 6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAllCompanies ? 8 : 7} className="text-center py-8 text-muted-foreground">
                     {isLoading ? 'Loading...' : 'No transactions found'}
                   </TableCell>
                 </TableRow>

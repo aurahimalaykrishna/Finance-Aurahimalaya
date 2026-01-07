@@ -125,8 +125,13 @@ export function ViewTransactionDialog({
               )}
 
               <DetailRow
-                label="Date"
+                label="Transaction Date"
                 value={format(new Date(transaction.date), 'MMMM dd, yyyy')}
+              />
+
+              <DetailRow
+                label="Entry Date"
+                value={transaction.created_at ? format(new Date(transaction.created_at), 'MMMM dd, yyyy HH:mm') : '-'}
               />
 
               <Separator />
