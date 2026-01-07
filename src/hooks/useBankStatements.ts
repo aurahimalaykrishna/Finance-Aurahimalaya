@@ -142,6 +142,48 @@ export function useBankStatements(bankAccountId?: string | null) {
     },
   });
 
+  // Multi-match: match multiple statements to multiple transactions
+  const matchMultipleStatements = useMutation({
+    mutationFn: async ({ statementIds, transactionIds }: { statementIds: string[]; transactionIds: string[] }) => {
+      // Insert junction records for all statement-transaction combinations
+      const matchRecords = statementIds.flatMap(stmtId => 
+        transactionIds.map(txId => ({
+          bank_statement_id: stmtId,
+          transaction_id: txId,
+          user_id: user!.id,
+        }))
+      );
+      
+      const { error: matchError } = await supabase
+        .from('statement_transaction_matches')
+        .insert(matchRecords as any);
+      if (matchError) throw matchError;
+
+      // Mark all statements as matched
+      const { error: statementError } = await supabase
+        .from('bank_statements')
+        .update({ is_matched: true } as any)
+        .in('id', statementIds);
+      if (statementError) throw statementError;
+
+      // Mark all transactions as reconciled
+      const { error: txError } = await supabase
+        .from('transactions')
+        .update({ is_reconciled: true, reconciled_at: new Date().toISOString() } as any)
+        .in('id', transactionIds);
+      if (txError) throw txError;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['bank-statements'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['statement-matches'] });
+      toast({ title: `${variables.statementIds.length} statements matched to ${variables.transactionIds.length} transactions` });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error matching statements', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const unmatchStatement = useMutation({
     mutationFn: async (statementId: string) => {
       const statement = bankStatements.find(s => s.id === statementId);
@@ -209,6 +251,7 @@ export function useBankStatements(bankAccountId?: string | null) {
     createBulkStatements,
     matchStatement,
     matchStatementToMultiple,
+    matchMultipleStatements,
     unmatchStatement,
     deleteStatements,
   };

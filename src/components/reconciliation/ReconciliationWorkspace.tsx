@@ -14,6 +14,7 @@ interface ReconciliationWorkspaceProps {
   transactions: Transaction[];
   onMatch: (statementId: string, transactionId: string) => void;
   onMultiMatch: (statementId: string, transactionIds: string[]) => void;
+  onMultiStatementsMatch: (statementIds: string[], transactionIds: string[]) => void;
   onUnmatch: (statementId: string) => void;
   onAutoMatch: () => void;
   currencySymbol?: string;
@@ -24,11 +25,12 @@ export function ReconciliationWorkspace({
   transactions,
   onMatch,
   onMultiMatch,
+  onMultiStatementsMatch,
   onUnmatch,
   onAutoMatch,
   currencySymbol = '$',
 }: ReconciliationWorkspaceProps) {
-  const [selectedStatement, setSelectedStatement] = useState<string | null>(null);
+  const [selectedStatements, setSelectedStatements] = useState<string[]>([]);
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
   const [showUnmatchedOnly, setShowUnmatchedOnly] = useState(false);
 
@@ -46,10 +48,15 @@ export function ReconciliationWorkspace({
     return transactions;
   }, [transactions, showUnmatchedOnly]);
 
-  // Calculate selected statement amount
-  const selectedStatementData = useMemo(() => {
-    return statements.find(s => s.id === selectedStatement);
-  }, [statements, selectedStatement]);
+  // Calculate sum of selected statements
+  const selectedStatementsTotal = useMemo(() => {
+    return statements
+      .filter(s => selectedStatements.includes(s.id))
+      .reduce((sum, s) => {
+        const amount = s.transaction_type === 'debit' ? -s.amount : s.amount;
+        return sum + amount;
+      }, 0);
+  }, [statements, selectedStatements]);
 
   // Calculate sum of selected transactions
   const selectedTransactionsTotal = useMemo(() => {
@@ -64,12 +71,17 @@ export function ReconciliationWorkspace({
 
   // Check if amounts match (within 0.01 tolerance)
   const amountsMatch = useMemo(() => {
-    if (!selectedStatementData || selectedTransactions.length === 0) return false;
-    const statementAmount = selectedStatementData.transaction_type === 'debit' 
-      ? -selectedStatementData.amount 
-      : selectedStatementData.amount;
-    return Math.abs(selectedTransactionsTotal - statementAmount) < 0.01;
-  }, [selectedStatementData, selectedTransactionsTotal]);
+    if (selectedStatements.length === 0 || selectedTransactions.length === 0) return false;
+    return Math.abs(selectedTransactionsTotal - selectedStatementsTotal) < 0.01;
+  }, [selectedStatements.length, selectedTransactions.length, selectedStatementsTotal, selectedTransactionsTotal]);
+
+  const handleStatementToggle = (statementId: string) => {
+    setSelectedStatements(prev => 
+      prev.includes(statementId)
+        ? prev.filter(id => id !== statementId)
+        : [...prev, statementId]
+    );
+  };
 
   const handleTransactionToggle = (transactionId: string) => {
     setSelectedTransactions(prev => 
@@ -80,15 +92,17 @@ export function ReconciliationWorkspace({
   };
 
   const handleMatch = () => {
-    if (!selectedStatement || selectedTransactions.length === 0) return;
+    if (selectedStatements.length === 0 || selectedTransactions.length === 0) return;
     
-    if (selectedTransactions.length === 1) {
-      onMatch(selectedStatement, selectedTransactions[0]);
+    if (selectedStatements.length === 1 && selectedTransactions.length === 1) {
+      onMatch(selectedStatements[0], selectedTransactions[0]);
+    } else if (selectedStatements.length === 1) {
+      onMultiMatch(selectedStatements[0], selectedTransactions);
     } else {
-      onMultiMatch(selectedStatement, selectedTransactions);
+      onMultiStatementsMatch(selectedStatements, selectedTransactions);
     }
     
-    setSelectedStatement(null);
+    setSelectedStatements([]);
     setSelectedTransactions([]);
   };
 
@@ -129,33 +143,34 @@ export function ReconciliationWorkspace({
           </Button>
           <Button
             onClick={handleMatch}
-            disabled={!selectedStatement || selectedTransactions.length === 0 || !amountsMatch}
+            disabled={selectedStatements.length === 0 || selectedTransactions.length === 0 || !amountsMatch}
           >
-            {selectedTransactions.length > 1 ? (
+            {selectedStatements.length > 1 || selectedTransactions.length > 1 ? (
               <Split className="h-4 w-4 mr-2" />
             ) : (
               <Link2 className="h-4 w-4 mr-2" />
             )}
-            Match Selected {selectedTransactions.length > 1 && `(${selectedTransactions.length})`}
+            Match Selected
+            {(selectedStatements.length > 1 || selectedTransactions.length > 1) && 
+              ` (${selectedStatements.length}→${selectedTransactions.length})`}
           </Button>
         </div>
       </div>
 
       {/* Selection Summary */}
-      {selectedStatement && (
+      {(selectedStatements.length > 0 || selectedTransactions.length > 0) && (
         <div className={`p-3 rounded-lg border-2 ${amountsMatch ? 'border-green-500 bg-green-50 dark:bg-green-950/20' : 'border-orange-500 bg-orange-50 dark:bg-orange-950/20'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div>
-                <p className="text-sm text-muted-foreground">Statement Amount</p>
-                <p className={`font-semibold ${selectedStatementData?.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
-                  {selectedStatementData?.transaction_type === 'credit' ? '+' : '-'}
-                  {currencySymbol}{Math.abs(selectedStatementData?.amount || 0).toFixed(2)}
+                <p className="text-sm text-muted-foreground">Statements ({selectedStatements.length})</p>
+                <p className={`font-semibold ${selectedStatementsTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {selectedStatementsTotal >= 0 ? '+' : ''}{currencySymbol}{Math.abs(selectedStatementsTotal).toFixed(2)}
                 </p>
               </div>
               <div className="text-2xl text-muted-foreground">=</div>
               <div>
-                <p className="text-sm text-muted-foreground">Selected Transactions ({selectedTransactions.length})</p>
+                <p className="text-sm text-muted-foreground">Transactions ({selectedTransactions.length})</p>
                 <p className={`font-semibold ${selectedTransactionsTotal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {selectedTransactionsTotal >= 0 ? '+' : ''}{currencySymbol}{Math.abs(selectedTransactionsTotal).toFixed(2)}
                 </p>
@@ -169,11 +184,7 @@ export function ReconciliationWorkspace({
                 </Badge>
               ) : (
                 <Badge variant="outline" className="text-orange-500 border-orange-500">
-                  Difference: {currencySymbol}{Math.abs(
-                    (selectedStatementData?.transaction_type === 'debit' 
-                      ? -selectedStatementData?.amount! 
-                      : selectedStatementData?.amount!) - selectedTransactionsTotal
-                  ).toFixed(2)}
+                  Difference: {currencySymbol}{Math.abs(selectedStatementsTotal - selectedTransactionsTotal).toFixed(2)}
                 </Badge>
               )}
             </div>
@@ -191,63 +202,77 @@ export function ReconciliationWorkspace({
           <CardContent className="p-0">
             <ScrollArea className="h-[400px]">
               <div className="space-y-1 p-4 pt-0">
-                {filteredStatements.map(statement => (
-                  <div
-                    key={statement.id}
-                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                      selectedStatement === statement.id
-                        ? 'border-primary bg-primary/5'
-                        : statement.is_matched
-                        ? 'border-green-500/30 bg-green-50 dark:bg-green-950/20'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    onClick={() => {
-                      if (!statement.is_matched) {
-                        setSelectedStatement(statement.id);
-                        setSelectedTransactions([]);
-                      }
-                    }}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{statement.description}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(statement.statement_date), 'MMM d, yyyy')}
-                          {statement.reference_number && ` • Ref: ${statement.reference_number}`}
-                        </p>
-                      </div>
-                      <div className="text-right ml-2">
-                        <p className={`font-medium ${statement.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
-                          {statement.transaction_type === 'credit' ? '+' : '-'}{currencySymbol}{Math.abs(statement.amount).toFixed(2)}
-                        </p>
-                        {statement.is_matched ? (
-                          <Badge variant="outline" className="text-green-600 border-green-600">
-                            <Check className="h-3 w-3 mr-1" />
-                            Matched
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-orange-500 border-orange-500">
-                            Pending
-                          </Badge>
+                {filteredStatements.map(statement => {
+                  const isSelected = selectedStatements.includes(statement.id);
+                  return (
+                    <div
+                      key={statement.id}
+                      className={`p-3 rounded-lg border transition-colors ${
+                        isSelected
+                          ? 'border-primary bg-primary/5'
+                          : statement.is_matched
+                          ? 'border-green-500/30 bg-green-50 dark:bg-green-950/20'
+                          : 'border-border hover:border-primary/50'
+                      } ${!statement.is_matched ? 'cursor-pointer' : ''}`}
+                      onClick={() => {
+                        if (!statement.is_matched) {
+                          handleStatementToggle(statement.id);
+                        }
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        {!statement.is_matched && (
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => handleStatementToggle(statement.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-1"
+                          />
                         )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{statement.description}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(statement.statement_date), 'MMM d, yyyy')}
+                                {statement.reference_number && ` • Ref: ${statement.reference_number}`}
+                              </p>
+                            </div>
+                            <div className="text-right ml-2">
+                              <p className={`font-medium ${statement.transaction_type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                                {statement.transaction_type === 'credit' ? '+' : '-'}{currencySymbol}{Math.abs(statement.amount).toFixed(2)}
+                              </p>
+                              {statement.is_matched ? (
+                                <Badge variant="outline" className="text-green-600 border-green-600">
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Matched
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-orange-500 border-orange-500">
+                                  Pending
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          {statement.is_matched && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="mt-2 h-7 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onUnmatch(statement.id);
+                              }}
+                            >
+                              <Unlink className="h-3 w-3 mr-1" />
+                              Unmatch
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    {statement.is_matched && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="mt-2 h-7 text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onUnmatch(statement.id);
-                        }}
-                      >
-                        <Unlink className="h-3 w-3 mr-1" />
-                        Unmatch
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
                 {filteredStatements.length === 0 && (
                   <p className="text-center text-muted-foreground py-8">No statements to show</p>
                 )}
@@ -275,15 +300,15 @@ export function ReconciliationWorkspace({
                           : transaction.is_reconciled
                           ? 'border-green-500/30 bg-green-50 dark:bg-green-950/20'
                           : 'border-border hover:border-primary/50'
-                      } ${!transaction.is_reconciled && selectedStatement ? 'cursor-pointer' : ''}`}
+                      } ${!transaction.is_reconciled ? 'cursor-pointer' : ''}`}
                       onClick={() => {
-                        if (!transaction.is_reconciled && selectedStatement) {
+                        if (!transaction.is_reconciled) {
                           handleTransactionToggle(transaction.id);
                         }
                       }}
                     >
                       <div className="flex items-start gap-3">
-                        {!transaction.is_reconciled && selectedStatement && (
+                        {!transaction.is_reconciled && (
                           <Checkbox
                             checked={isSelected}
                             onCheckedChange={() => handleTransactionToggle(transaction.id)}
