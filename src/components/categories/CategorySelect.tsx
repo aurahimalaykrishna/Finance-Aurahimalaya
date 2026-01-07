@@ -19,7 +19,7 @@ export function CategorySelect({
   // Filter by type if provided
   const filtered = type ? categories.filter(c => c.type === type) : categories;
   
-  // Get parent categories
+  // Get parent categories (categories without a parent_id)
   const parents = filtered.filter(c => c.parent_id === null);
   
   // Organize categories hierarchically
@@ -28,8 +28,8 @@ export function CategorySelect({
     subCategories: filtered.filter(c => c.parent_id === parent.id),
   }));
 
-  // Check if we have any sub-categories
-  const hasAnySubCategories = hierarchical.some(p => p.subCategories.length > 0);
+  // Always use hierarchical view - show parents with their sub-categories
+  // Parents without sub-categories will be shown as standalone items
 
   return (
     <Select value={value || ''} onValueChange={(v) => onValueChange(v || null)}>
@@ -37,55 +37,59 @@ export function CategorySelect({
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
-        {hasAnySubCategories ? (
-          // Grouped view for hierarchical categories
-          hierarchical.map(parent => (
-            <SelectGroup key={parent.id}>
-              <SelectLabel className="flex items-center gap-2 text-xs font-semibold text-muted-foreground px-2 py-1.5">
-                <span
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: parent.color }}
-                />
-                {parent.name}
-              </SelectLabel>
-              {/* Parent as selectable option */}
-              <SelectItem value={parent.id} className="pl-4">
-                <span className="flex items-center gap-2">
+        {hierarchical.map(parent => {
+          const hasSubCategories = parent.subCategories.length > 0;
+          
+          if (hasSubCategories) {
+            // Parent with sub-categories - show as group
+            return (
+              <SelectGroup key={parent.id}>
+                <SelectLabel className="flex items-center gap-2 text-xs font-semibold text-muted-foreground px-2 py-1.5">
                   <span
                     className="w-2 h-2 rounded-full"
                     style={{ backgroundColor: parent.color }}
                   />
                   {parent.name}
-                </span>
-              </SelectItem>
-              {/* Sub-categories */}
-              {parent.subCategories.map(sub => (
-                <SelectItem key={sub.id} value={sub.id} className="pl-8">
+                </SelectLabel>
+                {/* Parent as selectable option */}
+                <SelectItem value={parent.id} className="pl-4">
                   <span className="flex items-center gap-2">
                     <span
                       className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: sub.color }}
+                      style={{ backgroundColor: parent.color }}
                     />
-                    {parent.name} &gt; {sub.name}
+                    {parent.name}
                   </span>
                 </SelectItem>
-              ))}
-            </SelectGroup>
-          ))
-        ) : (
-          // Flat list for simple categories
-          filtered.map(cat => (
-            <SelectItem key={cat.id} value={cat.id}>
+                {/* Sub-categories */}
+                {parent.subCategories.map(sub => (
+                  <SelectItem key={sub.id} value={sub.id} className="pl-8">
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: sub.color }}
+                      />
+                      {parent.name} &gt; {sub.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            );
+          }
+          
+          // Standalone parent (no sub-categories) - show as regular item
+          return (
+            <SelectItem key={parent.id} value={parent.id}>
               <span className="flex items-center gap-2">
                 <span
                   className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: cat.color }}
+                  style={{ backgroundColor: parent.color }}
                 />
-                {cat.name}
+                {parent.name}
               </span>
             </SelectItem>
-          ))
-        )}
+          );
+        })}
       </SelectContent>
     </Select>
   );
