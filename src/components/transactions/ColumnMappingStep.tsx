@@ -11,7 +11,7 @@ interface ColumnMappingStepProps {
 }
 
 const MAPPING_FIELDS = [
-  { key: 'date' as const, label: 'Date', required: true, description: 'Transaction date' },
+  { key: 'date' as const, label: 'Transaction Date', required: true, description: 'Date of the transaction' },
   { key: 'amount' as const, label: 'Amount', required: true, description: 'Transaction amount' },
   { key: 'description' as const, label: 'Description', required: false, description: 'Transaction description/memo' },
   { key: 'type' as const, label: 'Type', required: false, description: 'Income or expense indicator' },
