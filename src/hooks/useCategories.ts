@@ -20,7 +20,7 @@ export interface CreateCategoryData {
   type: 'income' | 'expense';
   icon?: string;
   color?: string;
-  company_id?: string | null;
+  company_id?: string;
   parent_id?: string | null;
 }
 
