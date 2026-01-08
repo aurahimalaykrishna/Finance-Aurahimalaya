@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { ImportTransactionsDialog } from '@/components/transactions/ImportTransactionsDialog';
@@ -33,6 +34,11 @@ export default function Transactions() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  
+  type SortField = 'date' | 'created_at' | 'amount' | 'description' | 'type' | 'category';
+  type SortDirection = 'asc' | 'desc';
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [formData, setFormData] = useState<CreateTransactionData>(() => ({
     type: 'expense',
     amount: 0,
@@ -79,8 +85,17 @@ export default function Transactions() {
     await createBulkTransactions.mutateAsync(dataWithCompany);
   }, [createBulkTransactions, selectedCompanyId]);
 
+  const handleSort = (field: SortField) => {
+    if (field === sortField) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection(field === 'date' || field === 'created_at' ? 'desc' : 'asc');
+    }
+  };
+
   const filteredTransactions = useMemo(() => {
-    return transactions.filter(t => {
+    const filtered = transactions.filter(t => {
       const matchesSearch = t.description?.toLowerCase().includes(search.toLowerCase()) ||
         t.categories?.name.toLowerCase().includes(search.toLowerCase());
       const matchesType = typeFilter === 'all' || t.type === typeFilter;
@@ -98,7 +113,55 @@ export default function Transactions() {
       
       return matchesSearch && matchesType && matchesDate;
     });
-  }, [transactions, search, typeFilter, dateRange]);
+
+    // Sort the filtered results
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'date':
+          comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+          break;
+        case 'created_at':
+          comparison = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+          break;
+        case 'amount':
+          comparison = Number(a.amount) - Number(b.amount);
+          break;
+        case 'description':
+          comparison = (a.description || '').localeCompare(b.description || '');
+          break;
+        case 'type':
+          comparison = a.type.localeCompare(b.type);
+          break;
+        case 'category':
+          const catA = a.categories?.name || '';
+          const catB = b.categories?.name || '';
+          comparison = catA.localeCompare(catB);
+          break;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [transactions, search, typeFilter, dateRange, sortField, sortDirection]);
+
+  const SortableHeader = ({ field, children, className }: { field: SortField; children: React.ReactNode; className?: string }) => (
+    <TableHead 
+      className={cn("cursor-pointer hover:bg-muted/50 select-none transition-colors", className)}
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        {sortField === field ? (
+          sortDirection === 'asc' ? 
+            <ChevronUp className="h-4 w-4" /> : 
+            <ChevronDown className="h-4 w-4" />
+        ) : (
+          <ArrowUpDown className="h-4 w-4 opacity-30" />
+        )}
+      </div>
+    </TableHead>
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -325,13 +388,13 @@ export default function Transactions() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Type</TableHead>
-                <TableHead>Description</TableHead>
+                <SortableHeader field="type">Type</SortableHeader>
+                <SortableHeader field="description">Description</SortableHeader>
                 {isAllCompanies && <TableHead>Company</TableHead>}
-                <TableHead>Category</TableHead>
-                <TableHead>Transaction Date</TableHead>
-                <TableHead>Entry Date</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <SortableHeader field="category">Category</SortableHeader>
+                <SortableHeader field="date">Transaction Date</SortableHeader>
+                <SortableHeader field="created_at">Entry Date</SortableHeader>
+                <SortableHeader field="amount" className="text-right">Amount</SortableHeader>
                 <TableHead className="w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
