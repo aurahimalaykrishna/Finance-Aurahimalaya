@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTransactions, CreateTransactionData, Transaction } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useCompanyContext } from '@/contexts/CompanyContext';
@@ -33,7 +33,7 @@ export default function Transactions() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [formData, setFormData] = useState<CreateTransactionData>({
+  const [formData, setFormData] = useState<CreateTransactionData>(() => ({
     type: 'expense',
     amount: 0,
     description: '',
@@ -41,7 +41,28 @@ export default function Transactions() {
     category_id: null,
     company_id: selectedCompanyId,
     currency: selectedCompany?.currency || 'NPR',
-  });
+  }));
+
+  // Update form currency when selected company changes
+  const handleCompanyChange = (companyId: string | null) => {
+    const company = companies.find(c => c.id === companyId);
+    setFormData(prev => ({ 
+      ...prev, 
+      company_id: companyId,
+      currency: company?.currency || 'NPR',
+    }));
+  };
+
+  // Sync form when selected company changes from sidebar
+  useEffect(() => {
+    if (selectedCompany) {
+      setFormData(prev => ({
+        ...prev,
+        company_id: selectedCompanyId,
+        currency: selectedCompany.currency || 'NPR',
+      }));
+    }
+  }, [selectedCompanyId, selectedCompany]);
 
   const handleBulkImport = useCallback(async (data: Array<{
     date: string;
@@ -194,7 +215,7 @@ export default function Transactions() {
                     <Label>Company</Label>
                     <Select 
                       value={formData.company_id || ''} 
-                      onValueChange={(v) => setFormData({ ...formData, company_id: v || null })}
+                      onValueChange={handleCompanyChange}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select company" />
