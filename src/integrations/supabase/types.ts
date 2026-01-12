@@ -480,6 +480,62 @@ export type Database = {
         }
         Relationships: []
       }
+      suppliers: {
+        Row: {
+          address: string | null
+          company_id: string | null
+          contact_person: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          phone: string | null
+          tax_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          company_id?: string | null
+          contact_person?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          tax_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          company_id?: string | null
+          contact_person?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          tax_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_invitations: {
         Row: {
           accepted_at: string | null
@@ -613,6 +669,7 @@ export type Database = {
           id: string
           is_reconciled: boolean | null
           reconciled_at: string | null
+          supplier_id: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at: string | null
           user_id: string
@@ -629,6 +686,7 @@ export type Database = {
           id?: string
           is_reconciled?: boolean | null
           reconciled_at?: string | null
+          supplier_id?: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string | null
           user_id: string
@@ -645,6 +703,7 @@ export type Database = {
           id?: string
           is_reconciled?: boolean | null
           reconciled_at?: string | null
+          supplier_id?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string | null
           user_id?: string
@@ -669,6 +728,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]

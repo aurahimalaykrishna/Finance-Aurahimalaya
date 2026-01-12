@@ -20,6 +20,7 @@ import Companies from "./pages/Companies";
 import CompanyProfile from "./pages/CompanyProfile";
 import Reconciliation from "./pages/Reconciliation";
 import UserManagement from "./pages/UserManagement";
+import Suppliers from "./pages/Suppliers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,7 @@ function AppRoutes() {
             <Route path="/budgets" element={<Budgets />} />
             <Route path="/companies" element={<Companies />} />
             <Route path="/company/:id" element={<CompanyProfile />} />
+            <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/reconciliation" element={<Reconciliation />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/audit-logs" element={<AuditLogs />} />
