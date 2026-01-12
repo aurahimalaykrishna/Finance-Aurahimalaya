@@ -8,6 +8,7 @@ export interface Transaction {
   user_id: string;
   category_id: string | null;
   company_id: string | null;
+  supplier_id: string | null;
   type: 'income' | 'expense';
   amount: number;
   description: string | null;
@@ -28,11 +29,16 @@ export interface Transaction {
     id: string;
     name: string;
   } | null;
+  suppliers?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 export interface CreateTransactionData {
   category_id?: string | null;
   company_id?: string | null;
+  supplier_id?: string | null;
   type: 'income' | 'expense';
   amount: number;
   description?: string;
@@ -59,6 +65,10 @@ export function useTransactions(companyId?: string | null) {
             icon
           ),
           companies (
+            id,
+            name
+          ),
+          suppliers (
             id,
             name
           )
