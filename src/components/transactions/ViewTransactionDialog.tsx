@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowUpRight, ArrowDownRight, CheckCircle2, XCircle, Building2, Pencil } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, CheckCircle2, XCircle, Building2, Pencil, Truck } from 'lucide-react';
 import { format } from 'date-fns';
 import { getCurrencySymbol } from '@/lib/currencies';
 import { Transaction } from '@/hooks/useTransactions';
@@ -119,6 +119,18 @@ export function ViewTransactionDialog({
                     <Badge variant="outline" className="font-normal">
                       <Building2 className="h-3 w-3 mr-1" />
                       {transaction.companies.name}
+                    </Badge>
+                  }
+                />
+              )}
+
+              {transaction.suppliers && (
+                <DetailRow
+                  label="Supplier"
+                  value={
+                    <Badge variant="outline" className="font-normal">
+                      <Truck className="h-3 w-3 mr-1" />
+                      {transaction.suppliers.name}
                     </Badge>
                   }
                 />

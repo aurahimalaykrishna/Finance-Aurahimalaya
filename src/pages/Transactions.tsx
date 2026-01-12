@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText, ArrowUpDown, ChevronUp, ChevronDown, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
@@ -19,6 +19,7 @@ import { ImportTransactionsDialog } from '@/components/transactions/ImportTransa
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
 import { ViewTransactionDialog } from '@/components/transactions/ViewTransactionDialog';
 import { CategorySelect } from '@/components/categories/CategorySelect';
+import { SupplierSelect } from '@/components/suppliers/SupplierSelect';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { getCurrencySymbol, CURRENCIES } from '@/lib/currencies';
 import { exportToCSV, exportToExcel } from '@/utils/exportUtils';
@@ -46,6 +47,7 @@ export default function Transactions() {
     date: format(new Date(), 'yyyy-MM-dd'),
     category_id: null,
     company_id: selectedCompanyId,
+    supplier_id: null,
     currency: selectedCompany?.currency || 'NPR',
   }));
 
@@ -55,6 +57,7 @@ export default function Transactions() {
     setFormData(prev => ({ 
       ...prev, 
       company_id: companyId,
+      supplier_id: null, // Reset supplier when company changes
       currency: company?.currency || 'NPR',
     }));
   };
@@ -177,6 +180,7 @@ export default function Transactions() {
       date: format(new Date(), 'yyyy-MM-dd'), 
       category_id: null,
       company_id: selectedCompanyId,
+      supplier_id: null,
       currency: selectedCompany?.currency || 'NPR',
     });
   };
@@ -317,6 +321,14 @@ export default function Transactions() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label>Supplier</Label>
+                  <SupplierSelect
+                    value={formData.supplier_id || 'none'}
+                    onValueChange={(v) => setFormData({ ...formData, supplier_id: v === 'none' ? null : v })}
+                    companyId={formData.company_id}
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label>Description</Label>
                   <Input value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
                 </div>
@@ -370,6 +382,7 @@ export default function Transactions() {
         onSave={handleEditSave}
         isPending={updateTransaction.isPending}
         defaultCurrency={selectedCompany?.currency || 'NPR'}
+        companyId={editingTransaction?.company_id || selectedCompanyId}
       />
 
       <ViewTransactionDialog
@@ -392,6 +405,7 @@ export default function Transactions() {
                 <SortableHeader field="description">Description</SortableHeader>
                 {isAllCompanies && <TableHead>Company</TableHead>}
                 <SortableHeader field="category">Category</SortableHeader>
+                <TableHead>Supplier</TableHead>
                 <SortableHeader field="date">Transaction Date</SortableHeader>
                 <SortableHeader field="created_at">Entry Date</SortableHeader>
                 <SortableHeader field="amount" className="text-right">Amount</SortableHeader>
@@ -427,6 +441,14 @@ export default function Transactions() {
                         </span>
                       )}
                     </TableCell>
+                    <TableCell>
+                      {t.suppliers && (
+                        <Badge variant="outline" className="font-normal">
+                          <Truck className="h-3 w-3 mr-1" />
+                          {t.suppliers.name}
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{format(new Date(t.date), 'MMM dd, yyyy')}</TableCell>
                     <TableCell className="text-muted-foreground">{t.created_at ? format(new Date(t.created_at), 'MMM dd, yyyy') : '-'}</TableCell>
                     <TableCell className={`text-right font-semibold ${t.type === 'income' ? 'text-success' : 'text-destructive'}`}>
@@ -449,7 +471,7 @@ export default function Transactions() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={isAllCompanies ? 8 : 7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAllCompanies ? 9 : 8} className="text-center py-8 text-muted-foreground">
                     {isLoading ? 'Loading...' : 'No transactions found'}
                   </TableCell>
                 </TableRow>

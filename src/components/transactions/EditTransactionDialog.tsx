@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Transaction, CreateTransactionData } from '@/hooks/useTransactions';
 import { CategorySelect } from '@/components/categories/CategorySelect';
+import { SupplierSelect } from '@/components/suppliers/SupplierSelect';
 import { format } from 'date-fns';
 import { CURRENCIES } from '@/lib/currencies';
 import { Category } from '@/hooks/useCategories';
@@ -18,6 +19,7 @@ interface EditTransactionDialogProps {
   onSave: (id: string, data: Partial<CreateTransactionData>) => Promise<void>;
   isPending?: boolean;
   defaultCurrency?: string;
+  companyId?: string | null;
 }
 
 export function EditTransactionDialog({
@@ -28,6 +30,7 @@ export function EditTransactionDialog({
   onSave,
   isPending = false,
   defaultCurrency = 'NPR',
+  companyId,
 }: EditTransactionDialogProps) {
   const [formData, setFormData] = useState<Partial<CreateTransactionData>>({
     type: 'expense',
@@ -35,6 +38,7 @@ export function EditTransactionDialog({
     description: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     category_id: null,
+    supplier_id: null,
     currency: defaultCurrency,
   });
 
@@ -46,6 +50,7 @@ export function EditTransactionDialog({
         description: transaction.description || '',
         date: transaction.date,
         category_id: transaction.category_id,
+        supplier_id: transaction.supplier_id,
         currency: transaction.currency || 'NPR',
       });
     }
@@ -102,6 +107,14 @@ export function EditTransactionDialog({
               value={formData.category_id || null}
               onValueChange={(v) => setFormData({ ...formData, category_id: v })}
               type={formData.type}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Supplier</Label>
+            <SupplierSelect
+              value={formData.supplier_id || 'none'}
+              onValueChange={(v) => setFormData({ ...formData, supplier_id: v === 'none' ? null : v })}
+              companyId={companyId}
             />
           </div>
           <div className="space-y-2">
