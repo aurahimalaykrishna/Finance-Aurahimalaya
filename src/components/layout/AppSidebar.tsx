@@ -10,7 +10,8 @@ import {
   TrendingUp,
   Building2,
   Scale,
-  Users
+  Users,
+  Truck
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,6 +39,7 @@ const mainItems = [
   { title: 'Categories', url: '/categories', icon: FolderOpen },
   { title: 'Budgets', url: '/budgets', icon: Target },
   { title: 'Companies', url: '/companies', icon: Building2 },
+  { title: 'Suppliers', url: '/suppliers', icon: Truck },
 ];
 
 const analyticsItems = [
