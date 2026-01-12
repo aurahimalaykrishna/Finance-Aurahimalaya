@@ -43,18 +43,18 @@ export function EditTransactionDialog({
   });
 
   useEffect(() => {
-    if (transaction) {
+    if (transaction && open) {
       setFormData({
         type: transaction.type,
         amount: Number(transaction.amount),
         description: transaction.description || '',
         date: transaction.date,
         category_id: transaction.category_id,
-        supplier_id: transaction.supplier_id,
+        supplier_id: transaction.supplier_id || null,
         currency: transaction.currency || 'NPR',
       });
     }
-  }, [transaction]);
+  }, [transaction, open]);
 
   const filteredCategories = categories.filter(c => c.type === formData.type);
 
