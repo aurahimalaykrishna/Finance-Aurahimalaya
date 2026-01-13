@@ -11,13 +11,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText, ArrowUpDown, ChevronUp, ChevronDown, Truck } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText, ArrowUpDown, ChevronUp, ChevronDown, Truck, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
 import { ImportTransactionsDialog } from '@/components/transactions/ImportTransactionsDialog';
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
 import { ViewTransactionDialog } from '@/components/transactions/ViewTransactionDialog';
+import { BulkActionsDialog } from '@/components/transactions/BulkActionsDialog';
 import { CategorySelect } from '@/components/categories/CategorySelect';
 import { SupplierSelect } from '@/components/suppliers/SupplierSelect';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
@@ -26,7 +29,7 @@ import { exportToCSV, exportToExcel } from '@/utils/exportUtils';
 
 export default function Transactions() {
   const { selectedCompanyId, selectedCompany, companies, isAllCompanies } = useCompanyContext();
-  const { transactions, isLoading, createTransaction, updateTransaction, deleteTransaction, createBulkTransactions } = useTransactions(selectedCompanyId);
+  const { transactions, isLoading, createTransaction, updateTransaction, deleteTransaction, createBulkTransactions, bulkDeleteTransactions, bulkUpdateTransactions } = useTransactions(selectedCompanyId);
   const { categories, getCategoryDisplayName } = useCategories(selectedCompanyId);
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -35,6 +38,8 @@ export default function Transactions() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkActionOpen, setBulkActionOpen] = useState(false);
   
   type SortField = 'date' | 'created_at' | 'amount' | 'description' | 'type' | 'category';
   type SortDirection = 'asc' | 'desc';
@@ -190,6 +195,48 @@ export default function Transactions() {
   };
 
   const filteredCategories = categories.filter(c => c.type === formData.type);
+
+  const handleBulkDelete = async () => {
+    await bulkDeleteTransactions.mutateAsync(Array.from(selectedIds));
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkCategoryChange = async (categoryId: string | null) => {
+    if (!categoryId) return;
+    await bulkUpdateTransactions.mutateAsync({
+      ids: Array.from(selectedIds),
+      data: { category_id: categoryId },
+    });
+    setSelectedIds(new Set());
+    setBulkActionOpen(false);
+  };
+
+  const handleBulkSupplierChange = async (supplierId: string | null) => {
+    await bulkUpdateTransactions.mutateAsync({
+      ids: Array.from(selectedIds),
+      data: { supplier_id: supplierId },
+    });
+    setSelectedIds(new Set());
+    setBulkActionOpen(false);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredTransactions.map(t => t.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
 
   // Get currency symbol for a transaction - prioritize transaction's own currency
   const getTransactionCurrency = (transaction: Transaction) => {
@@ -396,11 +443,63 @@ export default function Transactions() {
         }}
       />
 
+      <BulkActionsDialog
+        open={bulkActionOpen}
+        onOpenChange={setBulkActionOpen}
+        selectedCount={selectedIds.size}
+        categories={categories}
+        companyId={selectedCompanyId}
+        onChangeCategory={handleBulkCategoryChange}
+        onChangeSupplier={handleBulkSupplierChange}
+        isPending={bulkUpdateTransactions.isPending}
+      />
+
+      {selectedIds.size > 0 && (
+        <div className="bg-muted border rounded-lg p-3 flex items-center justify-between">
+          <span className="text-sm font-medium">
+            {selectedIds.size} transaction{selectedIds.size > 1 ? 's' : ''} selected
+          </span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setBulkActionOpen(true)}>
+              <Pencil className="h-4 w-4 mr-2" /> Change Category/Supplier
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="h-4 w-4 mr-2" /> Delete Selected
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {selectedIds.size} transactions?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. All selected transactions will be permanently deleted.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleBulkDelete}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+              <X className="h-4 w-4 mr-2" /> Clear
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Card className="border-border/50">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={selectedIds.size === filteredTransactions.length && filteredTransactions.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
                 <SortableHeader field="type">Type</SortableHeader>
                 <SortableHeader field="description">Description</SortableHeader>
                 {isAllCompanies && <TableHead>Company</TableHead>}
@@ -415,7 +514,13 @@ export default function Transactions() {
             <TableBody>
               {filteredTransactions.length > 0 ? (
                 filteredTransactions.map((t) => (
-                  <TableRow key={t.id}>
+                  <TableRow key={t.id} data-state={selectedIds.has(t.id) ? 'selected' : undefined}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(t.id)}
+                        onCheckedChange={() => toggleSelect(t.id)}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                         t.type === 'income' ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'
@@ -471,7 +576,7 @@ export default function Transactions() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={isAllCompanies ? 9 : 8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAllCompanies ? 10 : 9} className="text-center py-8 text-muted-foreground">
                     {isLoading ? 'Loading...' : 'No transactions found'}
                   </TableCell>
                 </TableRow>

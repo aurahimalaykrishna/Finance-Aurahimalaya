@@ -185,6 +185,54 @@ export function useTransactions(companyId?: string | null) {
     },
   });
 
+  const bulkDeleteTransactions = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .in('id', ids);
+      if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action: 'BULK_DELETE',
+        entity_type: 'transaction',
+        new_values: { count: ids.length, ids } as any,
+      } as any);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast({ title: `${variables.length} transactions deleted` });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error deleting transactions', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const bulkUpdateTransactions = useMutation({
+    mutationFn: async ({ ids, data }: { ids: string[]; data: Partial<CreateTransactionData> }) => {
+      const { error } = await supabase
+        .from('transactions')
+        .update(data as any)
+        .in('id', ids);
+      if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action: 'BULK_UPDATE',
+        entity_type: 'transaction',
+        new_values: { count: ids.length, changes: data } as any,
+      } as any);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      toast({ title: `${variables.ids.length} transactions updated` });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error updating transactions', description: error.message, variant: 'destructive' });
+    },
+  });
+
   return {
     transactions,
     isLoading,
@@ -192,5 +240,7 @@ export function useTransactions(companyId?: string | null) {
     updateTransaction,
     deleteTransaction,
     createBulkTransactions,
+    bulkDeleteTransactions,
+    bulkUpdateTransactions,
   };
 }
