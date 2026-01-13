@@ -10,9 +10,9 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
 
 export default function Reports() {
-  const { transactions } = useTransactions();
-  const { categories } = useCategories();
-  const { selectedCompany } = useCompanyContext();
+  const { selectedCompanyId, selectedCompany, isAllCompanies } = useCompanyContext();
+  const { transactions } = useTransactions(selectedCompanyId);
+  const { categories } = useCategories(selectedCompanyId);
   const currencySymbol = getCurrencySymbol(selectedCompany?.currency || 'NPR');
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -91,7 +91,11 @@ export default function Reports() {
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Reports & Analytics</h2>
-          <p className="text-sm text-muted-foreground">Analyze your financial data</p>
+          <p className="text-sm text-muted-foreground">
+            {isAllCompanies 
+              ? 'Showing data from all companies' 
+              : `Showing data for ${selectedCompany?.name || 'selected company'}`}
+          </p>
         </div>
         <DateRangePicker
           dateRange={dateRange}
