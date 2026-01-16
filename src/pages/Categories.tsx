@@ -25,6 +25,8 @@ export default function Categories() {
     deleteCategory,
     getSubCategories,
     hasSubCategories,
+    getCategoryDepth,
+    canHaveSubCategories,
   } = useCategories();
   
   const [open, setOpen] = useState(false);
@@ -127,57 +129,50 @@ export default function Categories() {
   // Check if category type can be changed (only if no sub-categories)
   const canChangeType = editingCategory ? !hasSubCategories(editingCategory.id) : true;
 
-  // Get available parent categories for editing
+  // Get available parent categories for editing (depth 1 and 2 can be parents)
   const getAvailableParentsForEdit = () => {
     if (!editingCategory) return [];
+    const editingDepth = getCategoryDepth(editingCategory.id);
+    
+    // Get all descendants of the editing category to exclude them
+    const getDescendantIds = (parentId: string): string[] => {
+      const children = categories.filter(c => c.parent_id === parentId);
+      return children.flatMap(child => [child.id, ...getDescendantIds(child.id)]);
+    };
+    const descendantIds = getDescendantIds(editingCategory.id);
+    
     return categories.filter(c => 
       c.type === formData.type && 
-      c.parent_id === null && 
-      c.id !== editingCategory.id
+      c.id !== editingCategory.id &&
+      !descendantIds.includes(c.id) &&
+      canHaveSubCategories(c.id)
     );
   };
 
-  const CategoryCard = ({ category, isSubCategory = false }: { category: Category; isSubCategory?: boolean }) => {
+  const CategoryCard = ({ category, depth = 1 }: { category: Category; depth?: number }) => {
     const subCategories = getSubCategories(category.id);
     const hasChildren = subCategories.length > 0;
     const isExpanded = expandedCategories.has(category.id);
+    const canAddSub = depth < 3; // Only allow adding sub-categories up to tier 2
 
-    if (isSubCategory) {
-      return (
-        <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20 border border-border/30 ml-6">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${category.color}20` }}>
-              <FolderOpen className="w-4 h-4" style={{ color: category.color }} />
-            </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="font-medium text-sm">{category.name}</p>
-                  {!category.company_id && (
-                    <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                      <Globe className="w-3 h-3 mr-1" />
-                      Shared
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">Sub-category</p>
-              </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => handleEdit(category)} title="Edit sub-category">
-              <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => deleteCategory.mutate(category.id)}>
-              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-            </Button>
-          </div>
-        </div>
-      );
-    }
+    // Calculate margin based on depth
+    const marginClass = depth === 1 ? '' : depth === 2 ? 'ml-6' : 'ml-12';
+    
+    // Adjust styling based on depth
+    const bgClass = depth === 1 ? 'bg-muted/30' : depth === 2 ? 'bg-muted/20' : 'bg-muted/10';
+    const borderClass = depth === 1 ? 'border-border/50' : 'border-border/30';
+    const iconSize = depth === 1 ? 'w-10 h-10' : 'w-8 h-8';
+    const iconInnerSize = depth === 1 ? 'w-5 h-5' : 'w-4 h-4';
+    const textSize = depth === 1 ? 'font-medium' : 'font-medium text-sm';
+    const padding = depth === 1 ? 'p-4' : 'p-3';
+
+    // Label for depth
+    const depthLabel = depth === 1 ? '' : depth === 2 ? 'Sub-category' : 'Sub-sub-category';
 
     return (
-      <div className="space-y-2">
+      <div className={`space-y-2 ${marginClass}`}>
         <Collapsible open={isExpanded} onOpenChange={() => hasChildren && toggleExpanded(category.id)}>
-          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border border-border/50">
+          <div className={`flex items-center justify-between ${padding} rounded-lg ${bgClass} border ${borderClass}`}>
             <div className="flex items-center gap-3">
               {hasChildren ? (
                 <CollapsibleTrigger asChild>
@@ -192,12 +187,12 @@ export default function Categories() {
               ) : (
                 <div className="w-6" />
               )}
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${category.color}20` }}>
-                <FolderOpen className="w-5 h-5" style={{ color: category.color }} />
+              <div className={`${iconSize} rounded-lg flex items-center justify-center`} style={{ backgroundColor: `${category.color}20` }}>
+                <FolderOpen className={iconInnerSize} style={{ color: category.color }} />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="font-medium">{category.name}</p>
+                  <p className={textSize}>{category.name}</p>
                   {!category.company_id && (
                     <Badge variant="secondary" className="text-xs px-1.5 py-0">
                       <Globe className="w-3 h-3 mr-1" />
@@ -206,20 +201,22 @@ export default function Categories() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground capitalize">
-                  {category.type}
+                  {depthLabel || category.type}
                   {hasChildren && ` • ${subCategories.length} sub-categor${subCategories.length === 1 ? 'y' : 'ies'}`}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => handleAddSubCategory(category)}
-                title="Add sub-category"
-              >
-                <FolderPlus className="h-4 w-4 text-muted-foreground hover:text-primary" />
-              </Button>
+              {canAddSub && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => handleAddSubCategory(category)}
+                  title="Add sub-category"
+                >
+                  <FolderPlus className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                </Button>
+              )}
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -241,7 +238,7 @@ export default function Categories() {
           </div>
           <CollapsibleContent className="space-y-2 mt-2">
             {subCategories.map(sub => (
-              <CategoryCard key={sub.id} category={sub} isSubCategory />
+              <CategoryCard key={sub.id} category={sub} depth={depth + 1} />
             ))}
           </CollapsibleContent>
         </Collapsible>
@@ -249,10 +246,10 @@ export default function Categories() {
     );
   };
 
-  // Get available parent categories for the form
+  // Get available parent categories for the form (categories that can have children - depth < 3)
   const availableParents = formData.parent_id 
-    ? [] // If editing a sub-category, don't change parents
-    : categories.filter(c => c.type === formData.type && c.parent_id === null);
+    ? [] // If adding a sub-category via button, don't show parent selection
+    : categories.filter(c => c.type === formData.type && canHaveSubCategories(c.id));
 
   return (
     <div className="space-y-6 animate-fade-in">
