@@ -7,7 +7,7 @@ import { useCompanyContext } from '@/contexts/CompanyContext';
 import { useProfile } from '@/hooks/useProfile';
 import { useBudgets } from '@/hooks/useBudgets';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, Building2, Target, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, Building2, Target, AlertTriangle, Banknote, Landmark, LineChart } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { getCurrencySymbol } from '@/lib/currencies';
@@ -223,6 +223,50 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Financial Position Cards (Single Company View) */}
+      {!isAllCompanies && selectedCompany && (
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card className="border-border/50 bg-blue-500/5">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Cash in Hand</CardTitle>
+              <Banknote className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">
+                {currencySymbol}{(selectedCompany.cash_in_hand || 0).toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Physical cash available</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 bg-green-500/5">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Cash in Bank</CardTitle>
+              <Landmark className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {currencySymbol}{(selectedCompany.cash_in_bank || 0).toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Bank account balance</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 bg-purple-500/5">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Investment</CardTitle>
+              <LineChart className="h-4 w-4 text-purple-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-600">
+                {currencySymbol}{(selectedCompany.investment || 0).toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Investment portfolio</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Company Comparison (only when viewing all companies) */}
       {isAllCompanies && companyData.length > 0 && (
         <Card className="border-border/50">
@@ -234,33 +278,58 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {companyData.map(company => (
-                <Card key={company.id} className="bg-muted/30">
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold mb-3">{company.name}</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Income</span>
-                        <span className="text-success font-medium">{getCurrencySymbol(company.currency)}{company.income.toLocaleString()}</span>
+              {companyData.map(company => {
+                const fullCompany = companies.find(c => c.id === company.id);
+                const cashInHand = fullCompany?.cash_in_hand || 0;
+                const cashInBank = fullCompany?.cash_in_bank || 0;
+                const investment = fullCompany?.investment || 0;
+                
+                return (
+                  <Card key={company.id} className="bg-muted/30">
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold mb-3">{company.name}</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Income</span>
+                          <span className="text-success font-medium">{getCurrencySymbol(company.currency)}{company.income.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Expenses</span>
+                          <span className="text-destructive font-medium">{getCurrencySymbol(company.currency)}{company.expenses.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between border-t pt-2">
+                          <span className="text-muted-foreground">Profit</span>
+                          <span className={`font-semibold ${company.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
+                            {getCurrencySymbol(company.currency)}{company.profit.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs border-t pt-2">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Banknote className="h-3 w-3 text-blue-500" /> Cash in Hand
+                          </span>
+                          <span className="text-blue-600 font-medium">{getCurrencySymbol(company.currency)}{cashInHand.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Landmark className="h-3 w-3 text-green-500" /> Cash in Bank
+                          </span>
+                          <span className="text-green-600 font-medium">{getCurrencySymbol(company.currency)}{cashInBank.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <LineChart className="h-3 w-3 text-purple-500" /> Investment
+                          </span>
+                          <span className="text-purple-600 font-medium">{getCurrencySymbol(company.currency)}{investment.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-xs border-t pt-2">
+                          <span className="text-muted-foreground">Transactions</span>
+                          <span>{company.transactionCount}</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Expenses</span>
-                        <span className="text-destructive font-medium">{getCurrencySymbol(company.currency)}{company.expenses.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between border-t pt-2">
-                        <span className="text-muted-foreground">Profit</span>
-                        <span className={`font-semibold ${company.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          {getCurrencySymbol(company.currency)}{company.profit.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">Transactions</span>
-                        <span>{company.transactionCount}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </CardContent>
         </Card>

@@ -13,6 +13,9 @@ export interface Company {
   logo_url: string | null;
   favicon_url: string | null;
   address: string | null;
+  cash_in_hand: number | null;
+  cash_in_bank: number | null;
+  investment: number | null;
   created_at: string | null;
   updated_at: string | null;
   access_role?: 'owner' | 'admin' | 'accountant' | 'viewer';
@@ -26,6 +29,9 @@ export interface CreateCompanyData {
   logo_url?: string | null;
   favicon_url?: string | null;
   address?: string | null;
+  cash_in_hand?: number;
+  cash_in_bank?: number;
+  investment?: number;
 }
 
 export function useCompanies() {
