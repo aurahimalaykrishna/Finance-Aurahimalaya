@@ -9,6 +9,10 @@ interface CategorySelectProps {
   placeholder?: string;
 }
 
+interface HierarchicalCategory extends Category {
+  subCategories: HierarchicalCategory[];
+}
+
 export function CategorySelect({
   categories,
   value,
@@ -19,17 +23,54 @@ export function CategorySelect({
   // Filter by type if provided
   const filtered = type ? categories.filter(c => c.type === type) : categories;
   
-  // Get parent categories (categories without a parent_id)
-  const parents = filtered.filter(c => c.parent_id === null);
+  // Get tier 1 categories (categories without a parent_id)
+  const tier1 = filtered.filter(c => c.parent_id === null);
   
-  // Organize categories hierarchically
-  const hierarchical = parents.map(parent => ({
+  // Organize categories hierarchically (3 tiers)
+  const hierarchical: HierarchicalCategory[] = tier1.map(parent => ({
     ...parent,
-    subCategories: filtered.filter(c => c.parent_id === parent.id),
+    subCategories: filtered
+      .filter(c => c.parent_id === parent.id)
+      .map(sub => ({
+        ...sub,
+        subCategories: filtered.filter(c => c.parent_id === sub.id).map(subSub => ({
+          ...subSub,
+          subCategories: [],
+        })),
+      })),
   }));
 
-  // Always use hierarchical view - show parents with their sub-categories
-  // Parents without sub-categories will be shown as standalone items
+  // Render a category item with proper indentation
+  const renderCategoryItem = (
+    category: HierarchicalCategory, 
+    depth: number, 
+    parentPath: string = ''
+  ) => {
+    const hasSubCategories = category.subCategories.length > 0;
+    const displayPath = parentPath 
+      ? `${parentPath} > ${category.name}` 
+      : category.name;
+    
+    // Indentation classes based on depth
+    const paddingClass = depth === 0 ? 'pl-2' : depth === 1 ? 'pl-6' : 'pl-10';
+
+    return (
+      <div key={category.id}>
+        <SelectItem value={category.id} className={paddingClass}>
+          <span className="flex items-center gap-2">
+            <span
+              className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: category.color }}
+            />
+            <span className="truncate">{displayPath}</span>
+          </span>
+        </SelectItem>
+        {hasSubCategories && category.subCategories.map(sub => 
+          renderCategoryItem(sub, depth + 1, displayPath)
+        )}
+      </div>
+    );
+  };
 
   return (
     <Select value={value || ''} onValueChange={(v) => onValueChange(v || null)}>
@@ -41,7 +82,7 @@ export function CategorySelect({
           const hasSubCategories = parent.subCategories.length > 0;
           
           if (hasSubCategories) {
-            // Parent with sub-categories - show as group
+            // Parent with sub-categories - show as group with recursive rendering
             return (
               <SelectGroup key={parent.id}>
                 <SelectLabel className="flex items-center gap-2 text-xs font-semibold text-muted-foreground px-2 py-1.5">
@@ -51,44 +92,13 @@ export function CategorySelect({
                   />
                   {parent.name}
                 </SelectLabel>
-                {/* Parent as selectable option */}
-                <SelectItem value={parent.id} className="pl-4">
-                  <span className="flex items-center gap-2">
-                    <span
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: parent.color }}
-                    />
-                    {parent.name}
-                  </span>
-                </SelectItem>
-                {/* Sub-categories */}
-                {parent.subCategories.map(sub => (
-                  <SelectItem key={sub.id} value={sub.id} className="pl-8">
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: sub.color }}
-                      />
-                      {parent.name} &gt; {sub.name}
-                    </span>
-                  </SelectItem>
-                ))}
+                {renderCategoryItem(parent, 0)}
               </SelectGroup>
             );
           }
           
           // Standalone parent (no sub-categories) - show as regular item
-          return (
-            <SelectItem key={parent.id} value={parent.id}>
-              <span className="flex items-center gap-2">
-                <span
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: parent.color }}
-                />
-                {parent.name}
-              </span>
-            </SelectItem>
-          );
+          return renderCategoryItem(parent, 0);
         })}
       </SelectContent>
     </Select>

@@ -281,20 +281,38 @@ export function validateAndParseRow(
     ? String(row[mapping.description] || '').trim() 
     : '';
   
-  // Try to match category (support hierarchical matching)
+  // Try to match category (support 3-tier hierarchical matching)
   let matchedCategory: string | undefined;
   if (mapping.category && row[mapping.category]) {
     const categoryValue = String(row[mapping.category]).toLowerCase().trim();
     
-    // First, try exact match
+    // First, try exact match on name
     let match = existingCategories.find(
       c => c.name.toLowerCase() === categoryValue && c.type === type
     );
     
-    // If no match, try matching "Parent > Sub" format
+    // If no match, try matching hierarchical formats (up to 3 levels)
     if (!match && categoryValue.includes('>')) {
       const parts = categoryValue.split('>').map(p => p.trim());
-      if (parts.length === 2) {
+      
+      if (parts.length === 3) {
+        // Try matching "Grandparent > Parent > Sub" format (3 tiers)
+        const [grandparentName, parentName, subName] = parts;
+        const grandparent = existingCategories.find(
+          c => c.name.toLowerCase() === grandparentName && c.type === type && !c.parent_id
+        );
+        if (grandparent) {
+          const parent = existingCategories.find(
+            c => c.name.toLowerCase() === parentName && c.type === type && c.parent_id === grandparent.id
+          );
+          if (parent) {
+            match = existingCategories.find(
+              c => c.name.toLowerCase() === subName && c.type === type && c.parent_id === parent.id
+            );
+          }
+        }
+      } else if (parts.length === 2) {
+        // Try matching "Parent > Sub" format (2 tiers)
         const [parentName, subName] = parts;
         const parent = existingCategories.find(
           c => c.name.toLowerCase() === parentName && c.type === type && !c.parent_id
@@ -304,10 +322,21 @@ export function validateAndParseRow(
             c => c.name.toLowerCase() === subName && c.type === type && c.parent_id === parent.id
           );
         }
+        // Also try if parent is a tier 2 category
+        if (!match) {
+          const tier2Parent = existingCategories.find(
+            c => c.name.toLowerCase() === parentName && c.type === type && c.parent_id !== null
+          );
+          if (tier2Parent) {
+            match = existingCategories.find(
+              c => c.name.toLowerCase() === subName && c.type === type && c.parent_id === tier2Parent.id
+            );
+          }
+        }
       }
     }
     
-    // If still no match, try fuzzy matching on sub-category name only
+    // If still no match, try fuzzy matching on category name only
     if (!match) {
       match = existingCategories.find(
         c => c.name.toLowerCase().includes(categoryValue) && c.type === type

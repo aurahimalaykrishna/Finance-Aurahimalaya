@@ -60,27 +60,55 @@ export function useCategories(companyId?: string | null) {
   // Check if a category has sub-categories
   const hasSubCategories = (categoryId: string) => 
     categories.some(c => c.parent_id === categoryId);
+
+  // Get the depth level of a category (1 = parent, 2 = sub, 3 = sub-sub)
+  const getCategoryDepth = (categoryId: string): number => {
+    const category = categories.find(c => c.id === categoryId);
+    if (!category) return 0;
+    if (!category.parent_id) return 1;
+    
+    const parent = categories.find(c => c.id === category.parent_id);
+    if (!parent?.parent_id) return 2;
+    return 3;
+  };
+
+  // Check if a category can have children (only allow up to 3 levels)
+  const canHaveSubCategories = (categoryId: string): boolean => {
+    return getCategoryDepth(categoryId) < 3;
+  };
   
-  // Get category name with parent prefix (e.g., "Parent > Sub")
-  const getCategoryDisplayName = (categoryId: string) => {
+  // Get category name with full hierarchy (e.g., "Parent > Sub > SubSub")
+  const getCategoryDisplayName = (categoryId: string): string => {
     const category = categories.find(c => c.id === categoryId);
     if (!category) return '';
     
     if (category.parent_id) {
       const parent = categories.find(c => c.id === category.parent_id);
+      if (parent?.parent_id) {
+        // This is a 3rd level category (sub-sub-category)
+        const grandparent = categories.find(c => c.id === parent.parent_id);
+        return grandparent 
+          ? `${grandparent.name} > ${parent.name} > ${category.name}` 
+          : `${parent.name} > ${category.name}`;
+      }
       return parent ? `${parent.name} > ${category.name}` : category.name;
     }
     return category.name;
   };
 
-  // Get all categories organized hierarchically
+  // Get all categories organized hierarchically (3 tiers)
   const getHierarchicalCategories = (type?: 'income' | 'expense') => {
     const filtered = type ? categories.filter(c => c.type === type) : categories;
-    const parents = filtered.filter(c => c.parent_id === null);
+    const tier1 = filtered.filter(c => c.parent_id === null);
     
-    return parents.map(parent => ({
+    return tier1.map(parent => ({
       ...parent,
-      subCategories: filtered.filter(c => c.parent_id === parent.id),
+      subCategories: filtered
+        .filter(c => c.parent_id === parent.id)
+        .map(sub => ({
+          ...sub,
+          subCategories: filtered.filter(c => c.parent_id === sub.id),
+        })),
     }));
   };
 
@@ -170,6 +198,8 @@ export function useCategories(companyId?: string | null) {
     deleteCategory,
     getSubCategories,
     hasSubCategories,
+    getCategoryDepth,
+    canHaveSubCategories,
     getCategoryDisplayName,
     getHierarchicalCategories,
   };
