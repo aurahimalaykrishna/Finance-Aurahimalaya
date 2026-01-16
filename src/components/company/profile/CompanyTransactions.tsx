@@ -1,4 +1,4 @@
-import { ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowRight, TrendingUp, TrendingDown, PiggyBank } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ interface Transaction {
   date: string;
   description: string | null;
   amount: number;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'investment';
   currency: string | null;
   categories?: {
     name: string;
@@ -67,10 +67,14 @@ export function CompanyTransactions({ companyId, transactions, currency }: Compa
                   <div className={`p-2 rounded-full ${
                     transaction.type === 'income'
                       ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900 dark:text-emerald-400'
+                      : transaction.type === 'investment'
+                      ? 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400'
                       : 'bg-rose-100 text-rose-600 dark:bg-rose-900 dark:text-rose-400'
                   }`}>
                     {transaction.type === 'income' ? (
                       <TrendingUp className="h-4 w-4" />
+                    ) : transaction.type === 'investment' ? (
+                      <PiggyBank className="h-4 w-4" />
                     ) : (
                       <TrendingDown className="h-4 w-4" />
                     )}
@@ -93,9 +97,11 @@ export function CompanyTransactions({ companyId, transactions, currency }: Compa
                   </div>
                 </div>
                 <span className={`font-semibold ${
-                  transaction.type === 'income' ? 'text-emerald-600' : 'text-rose-600'
+                  transaction.type === 'income' ? 'text-emerald-600' : 
+                  transaction.type === 'investment' ? 'text-blue-600' :
+                  'text-rose-600'
                 }`}>
-                  {transaction.type === 'income' ? '+' : '-'}
+                  {transaction.type === 'income' ? '+' : transaction.type === 'investment' ? '' : '-'}
                   {formatCurrency(transaction.amount)}
                 </span>
               </div>

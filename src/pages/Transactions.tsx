@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText, ArrowUpDown, ChevronUp, ChevronDown, Truck, X } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText, ArrowUpDown, ChevronUp, ChevronDown, Truck, X, PiggyBank } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
@@ -82,7 +82,7 @@ export default function Transactions() {
     date: string;
     amount: number;
     description: string;
-    type: 'income' | 'expense';
+    type: 'income' | 'expense' | 'investment';
     category_id?: string;
   }>) => {
     // Add company_id to each imported transaction
@@ -286,6 +286,7 @@ export default function Transactions() {
               <SelectItem value="all">All Types</SelectItem>
               <SelectItem value="income">Income</SelectItem>
               <SelectItem value="expense">Expense</SelectItem>
+              <SelectItem value="investment">Investment</SelectItem>
             </SelectContent>
           </Select>
           <DateRangePicker
@@ -345,11 +346,12 @@ export default function Transactions() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Type</Label>
-                    <Select value={formData.type} onValueChange={(v: 'income' | 'expense') => setFormData({ ...formData, type: v, category_id: null })}>
+                    <Select value={formData.type} onValueChange={(v: 'income' | 'expense' | 'investment') => setFormData({ ...formData, type: v, category_id: null })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="income">Income</SelectItem>
                         <SelectItem value="expense">Expense</SelectItem>
+                        <SelectItem value="investment">Investment</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -364,7 +366,7 @@ export default function Transactions() {
                     categories={filteredCategories}
                     value={formData.category_id}
                     onValueChange={(v) => setFormData({ ...formData, category_id: v })}
-                    type={formData.type}
+                    type={formData.type as 'income' | 'expense' | 'investment'}
                   />
                 </div>
                 <div className="space-y-2">
@@ -523,9 +525,13 @@ export default function Transactions() {
                     </TableCell>
                     <TableCell>
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        t.type === 'income' ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'
+                        t.type === 'income' ? 'bg-success/20 text-success' : 
+                        t.type === 'investment' ? 'bg-blue-500/20 text-blue-600' :
+                        'bg-destructive/20 text-destructive'
                       }`}>
-                        {t.type === 'income' ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+                        {t.type === 'income' ? <ArrowUpRight className="w-4 h-4" /> : 
+                         t.type === 'investment' ? <PiggyBank className="w-4 h-4" /> :
+                         <ArrowDownRight className="w-4 h-4" />}
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{t.description || '-'}</TableCell>
@@ -556,8 +562,12 @@ export default function Transactions() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">{format(new Date(t.date), 'MMM dd, yyyy')}</TableCell>
                     <TableCell className="text-muted-foreground">{t.created_at ? format(new Date(t.created_at), 'MMM dd, yyyy') : '-'}</TableCell>
-                    <TableCell className={`text-right font-semibold ${t.type === 'income' ? 'text-success' : 'text-destructive'}`}>
-                      {t.type === 'income' ? '+' : '-'}{getTransactionCurrency(t)}{Number(t.amount).toLocaleString()}
+                    <TableCell className={`text-right font-semibold ${
+                      t.type === 'income' ? 'text-success' : 
+                      t.type === 'investment' ? 'text-blue-600' :
+                      'text-destructive'
+                    }`}>
+                      {t.type === 'income' ? '+' : t.type === 'investment' ? '' : '-'}{getTransactionCurrency(t)}{Number(t.amount).toLocaleString()}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">

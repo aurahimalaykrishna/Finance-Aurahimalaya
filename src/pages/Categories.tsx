@@ -19,6 +19,7 @@ export default function Categories() {
     categories, 
     incomeCategories, 
     expenseCategories, 
+    investmentCategories,
     isLoading, 
     createCategory, 
     updateCategory,
@@ -123,7 +124,7 @@ export default function Categories() {
   };
 
   // Get parent categories for a specific type
-  const getParentCategoriesByType = (type: 'income' | 'expense') => 
+  const getParentCategoriesByType = (type: 'income' | 'expense' | 'investment') => 
     categories.filter(c => c.type === type && c.parent_id === null);
 
   // Check if category type can be changed (only if no sub-categories)
@@ -320,12 +321,13 @@ export default function Categories() {
                   <Label>Type</Label>
                   <Select 
                     value={formData.type} 
-                    onValueChange={(v: 'income' | 'expense') => setFormData({ ...formData, type: v, parent_id: null })}
+                    onValueChange={(v: 'income' | 'expense' | 'investment') => setFormData({ ...formData, type: v, parent_id: null })}
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="income">Income</SelectItem>
                       <SelectItem value="expense">Expense</SelectItem>
+                      <SelectItem value="investment">Investment</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -407,12 +409,13 @@ export default function Categories() {
                   {canChangeType ? (
                     <Select 
                       value={formData.type} 
-                      onValueChange={(v: 'income' | 'expense') => setFormData({ ...formData, type: v, parent_id: null })}
+                      onValueChange={(v: 'income' | 'expense' | 'investment') => setFormData({ ...formData, type: v, parent_id: null })}
                     >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="income">Income</SelectItem>
                         <SelectItem value="expense">Expense</SelectItem>
+                        <SelectItem value="investment">Investment</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
@@ -471,6 +474,7 @@ export default function Categories() {
         <TabsList>
           <TabsTrigger value="expense">Expense ({expenseCategories.length})</TabsTrigger>
           <TabsTrigger value="income">Income ({incomeCategories.length})</TabsTrigger>
+          <TabsTrigger value="investment">Investment ({investmentCategories.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="expense" className="mt-4">
           <div className="space-y-3">
@@ -491,6 +495,17 @@ export default function Categories() {
               ))
             ) : (
               <p className="text-muted-foreground text-center py-8">No income categories yet</p>
+            )}
+          </div>
+        </TabsContent>
+        <TabsContent value="investment" className="mt-4">
+          <div className="space-y-3">
+            {getParentCategoriesByType('investment').length > 0 ? (
+              getParentCategoriesByType('investment').map((cat) => (
+                <CategoryCard key={cat.id} category={cat} />
+              ))
+            ) : (
+              <p className="text-muted-foreground text-center py-8">No investment categories yet</p>
             )}
           </div>
         </TabsContent>
