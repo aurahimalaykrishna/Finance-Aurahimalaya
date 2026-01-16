@@ -265,11 +265,14 @@ export type Database = {
       companies: {
         Row: {
           address: string | null
+          cash_in_bank: number | null
+          cash_in_hand: number | null
           created_at: string | null
           currency: string | null
           favicon_url: string | null
           fiscal_year_start: number | null
           id: string
+          investment: number | null
           is_default: boolean | null
           logo_url: string | null
           name: string
@@ -278,11 +281,14 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          cash_in_bank?: number | null
+          cash_in_hand?: number | null
           created_at?: string | null
           currency?: string | null
           favicon_url?: string | null
           fiscal_year_start?: number | null
           id?: string
+          investment?: number | null
           is_default?: boolean | null
           logo_url?: string | null
           name: string
@@ -291,11 +297,14 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          cash_in_bank?: number | null
+          cash_in_hand?: number | null
           created_at?: string | null
           currency?: string | null
           favicon_url?: string | null
           fiscal_year_start?: number | null
           id?: string
+          investment?: number | null
           is_default?: boolean | null
           logo_url?: string | null
           name?: string

@@ -41,6 +41,9 @@ export function CompanyDialog({ open, onOpenChange, company, onSave }: CompanyDi
     logo_url: null,
     favicon_url: null,
     address: null,
+    cash_in_hand: 0,
+    cash_in_bank: 0,
+    investment: 0,
   });
 
   useEffect(() => {
@@ -53,6 +56,9 @@ export function CompanyDialog({ open, onOpenChange, company, onSave }: CompanyDi
         logo_url: company.logo_url || null,
         favicon_url: company.favicon_url || null,
         address: company.address || null,
+        cash_in_hand: company.cash_in_hand || 0,
+        cash_in_bank: company.cash_in_bank || 0,
+        investment: company.investment || 0,
       });
     } else {
       setFormData({
@@ -63,6 +69,9 @@ export function CompanyDialog({ open, onOpenChange, company, onSave }: CompanyDi
         logo_url: null,
         favicon_url: null,
         address: null,
+        cash_in_hand: 0,
+        cash_in_bank: 0,
+        investment: 0,
       });
     }
   }, [company, open]);
@@ -153,6 +162,52 @@ export function CompanyDialog({ open, onOpenChange, company, onSave }: CompanyDi
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Financial Fields */}
+          <div className="space-y-4 border-t pt-4">
+            <h4 className="text-sm font-medium text-muted-foreground">Financial Information</h4>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cash_in_hand">Cash in Hand</Label>
+                <Input
+                  id="cash_in_hand"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.cash_in_hand || 0}
+                  onChange={(e) => setFormData({ ...formData, cash_in_hand: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="cash_in_bank">Cash in Bank</Label>
+                <Input
+                  id="cash_in_bank"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.cash_in_bank || 0}
+                  onChange={(e) => setFormData({ ...formData, cash_in_bank: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="investment">Investment</Label>
+                <Input
+                  id="investment"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.investment || 0}
+                  onChange={(e) => setFormData({ ...formData, investment: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-between">

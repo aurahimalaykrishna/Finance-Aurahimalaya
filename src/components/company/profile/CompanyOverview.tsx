@@ -1,4 +1,4 @@
-import { Calendar, DollarSign, TrendingUp, TrendingDown, Wallet, PiggyBank, FolderOpen, Building2 } from 'lucide-react';
+import { Calendar, DollarSign, TrendingUp, TrendingDown, Wallet, PiggyBank, FolderOpen, Building2, Banknote, Landmark, LineChart } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 
@@ -13,6 +13,9 @@ interface Company {
   currency?: string | null;
   fiscal_year_start?: number | null;
   created_at?: string | null;
+  cash_in_hand?: number | null;
+  cash_in_bank?: number | null;
+  investment?: number | null;
 }
 
 interface CompanyStats {
@@ -115,6 +118,48 @@ export function CompanyOverview({ company, stats }: CompanyOverviewProps) {
           <p className="text-xs text-muted-foreground">
             Income - Expenses
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Cash in Hand */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Cash in Hand</CardTitle>
+          <Banknote className="h-4 w-4 text-blue-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-blue-600">
+            {formatCurrency(company.cash_in_hand || 0)}
+          </div>
+          <p className="text-xs text-muted-foreground">Physical cash available</p>
+        </CardContent>
+      </Card>
+
+      {/* Cash in Bank */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Cash in Bank</CardTitle>
+          <Landmark className="h-4 w-4 text-green-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-green-600">
+            {formatCurrency(company.cash_in_bank || 0)}
+          </div>
+          <p className="text-xs text-muted-foreground">Bank account balance</p>
+        </CardContent>
+      </Card>
+
+      {/* Investment */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Investment</CardTitle>
+          <LineChart className="h-4 w-4 text-purple-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-purple-600">
+            {formatCurrency(company.investment || 0)}
+          </div>
+          <p className="text-xs text-muted-foreground">Investment portfolio</p>
         </CardContent>
       </Card>
 
