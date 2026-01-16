@@ -21,6 +21,11 @@ export interface Budget {
     icon: string;
     type: 'income' | 'expense';
   } | null;
+  companies?: {
+    id: string;
+    name: string;
+    currency: string;
+  } | null;
 }
 
 export interface CreateBudgetData {
@@ -50,6 +55,11 @@ export function useBudgets(companyId?: string | null) {
             color,
             icon,
             type
+          ),
+          companies (
+            id,
+            name,
+            currency
           )
         `)
         .order('created_at', { ascending: false });

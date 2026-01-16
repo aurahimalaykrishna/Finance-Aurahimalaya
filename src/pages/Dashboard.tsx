@@ -5,15 +5,16 @@ import { useTransactions } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useCompanyContext } from '@/contexts/CompanyContext';
 import { useProfile } from '@/hooks/useProfile';
+import { useBudgets } from '@/hooks/useBudgets';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, Building2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, Building2, Target, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { getCurrencySymbol } from '@/lib/currencies';
 import { CurrencyConverter } from '@/components/currency/CurrencyConverter';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
-
+import { Progress } from '@/components/ui/progress';
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ export default function Dashboard() {
   const { profile } = useProfile();
   const { transactions } = useTransactions(selectedCompanyId);
   const { categories } = useCategories(selectedCompanyId);
+  const { budgets } = useBudgets(isAllCompanies ? null : selectedCompanyId);
+  const { budgets: allBudgets } = useBudgets(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   useEffect(() => {
@@ -78,6 +81,54 @@ export default function Dashboard() {
       color: cat.color,
     }))
     .filter(c => c.value > 0);
+
+  // Calculate budget vs actual for each expense category
+  const budgetComparison = useMemo(() => {
+    const relevantBudgets = isAllCompanies ? allBudgets : budgets;
+    return relevantBudgets
+      .filter(budget => budget.categories?.type === 'expense')
+      .map(budget => {
+        const spent = filteredTransactions
+          .filter(t => t.category_id === budget.category_id && t.type === 'expense')
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+        
+        const budgetAmount = Number(budget.amount);
+        const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
+        
+        return {
+          id: budget.id,
+          categoryId: budget.category_id,
+          categoryName: budget.categories?.name || 'Unknown',
+          categoryColor: budget.categories?.color || '#6366f1',
+          budgetAmount,
+          spent,
+          remaining: budgetAmount - spent,
+          percentage: Math.min(percentage, 100),
+          actualPercentage: percentage,
+          isOverBudget: spent > budgetAmount,
+          companyId: budget.company_id,
+          companyName: budget.companies?.name || 'Unknown',
+          companyCurrency: budget.companies?.currency || 'NPR',
+        };
+      });
+  }, [budgets, allBudgets, filteredTransactions, isAllCompanies]);
+
+  // Group budgets by company for the all-companies view
+  const budgetsByCompany = useMemo(() => {
+    if (!isAllCompanies) return {};
+    return budgetComparison.reduce((acc, budget) => {
+      const companyId = budget.companyId || 'unknown';
+      if (!acc[companyId]) {
+        acc[companyId] = {
+          companyName: budget.companyName,
+          companyCurrency: budget.companyCurrency,
+          budgets: [],
+        };
+      }
+      acc[companyId].budgets.push(budget);
+      return acc;
+    }, {} as Record<string, { companyName: string; companyCurrency: string; budgets: typeof budgetComparison }>);
+  }, [budgetComparison, isAllCompanies]);
 
   // Company comparison data (only when viewing all companies)
   const companyData = isAllCompanies ? companies.map(company => {
@@ -215,6 +266,57 @@ export default function Dashboard() {
         </Card>
       )}
 
+      {/* Company Budgets Overview (only when viewing all companies) */}
+      {isAllCompanies && Object.keys(budgetsByCompany).length > 0 && (
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Company Budgets Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {Object.entries(budgetsByCompany).map(([companyId, { companyName, companyCurrency, budgets: companyBudgets }]) => (
+                <Card key={companyId} className="bg-muted/30">
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold mb-3">{companyName}</h3>
+                    <div className="space-y-3">
+                      {companyBudgets.map((budget) => (
+                        <div key={budget.id} className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: budget.categoryColor }} />
+                              <span className="truncate">{budget.categoryName}</span>
+                              {budget.isOverBudget && (
+                                <AlertTriangle className="h-3 w-3 text-destructive flex-shrink-0" />
+                              )}
+                            </div>
+                          </div>
+                          <Progress 
+                            value={budget.percentage} 
+                            className={`h-1.5 ${budget.isOverBudget ? '[&>div]:bg-destructive' : ''}`}
+                          />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>{getCurrencySymbol(companyCurrency)}{budget.spent.toLocaleString()}</span>
+                            <span className={budget.isOverBudget ? 'text-destructive' : ''}>
+                              / {getCurrencySymbol(companyCurrency)}{budget.budgetAmount.toLocaleString()} ({budget.actualPercentage.toFixed(0)}%)
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      {companyBudgets.length === 0 && (
+                        <p className="text-sm text-muted-foreground">No budgets set</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Charts */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="border-border/50">
@@ -238,10 +340,13 @@ export default function Dashboard() {
 
         <Card className="border-border/50">
           <CardHeader>
-            <CardTitle className="text-lg">Expenses by Category</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Expenses by Category
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
+            <div className="h-[200px]">
               {expensesByCategory.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -249,8 +354,8 @@ export default function Dashboard() {
                       data={expensesByCategory}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
+                      innerRadius={50}
+                      outerRadius={80}
                       paddingAngle={2}
                       dataKey="value"
                     >
@@ -266,13 +371,56 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
-            <div className="flex flex-wrap gap-2 mt-4">
-              {expensesByCategory.map((cat, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
-                  <span className="text-muted-foreground">{cat.name}</span>
-                </div>
-              ))}
+            
+            {/* Budget vs Actual Comparison */}
+            {!isAllCompanies && budgetComparison.length > 0 && (
+              <div className="mt-4 space-y-3 border-t pt-4">
+                <h4 className="text-sm font-medium text-muted-foreground">Budget vs Actual</h4>
+                {budgetComparison.map((item) => (
+                  <div key={item.id} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.categoryColor }} />
+                        <span>{item.categoryName}</span>
+                        {item.isOverBudget && (
+                          <AlertTriangle className="h-3 w-3 text-destructive" />
+                        )}
+                      </div>
+                      <span className={item.isOverBudget ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+                        {currencySymbol}{item.spent.toLocaleString()} / {currencySymbol}{item.budgetAmount.toLocaleString()}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={item.percentage} 
+                      className={`h-2 ${item.isOverBudget ? '[&>div]:bg-destructive' : ''}`}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{item.actualPercentage.toFixed(0)}% used</span>
+                      {item.isOverBudget ? (
+                        <span className="text-destructive">Over by {currencySymbol}{Math.abs(item.remaining).toLocaleString()}</span>
+                      ) : (
+                        <span>{currencySymbol}{item.remaining.toLocaleString()} remaining</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Category legend for expenses without budgets */}
+            <div className="flex flex-wrap gap-2 mt-4 pt-2 border-t">
+              {expensesByCategory.map((cat, i) => {
+                const hasBudget = budgetComparison.some(b => b.categoryName === cat.name);
+                return (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
+                    <span className="text-muted-foreground">{cat.name}</span>
+                    {!hasBudget && !isAllCompanies && (
+                      <span className="text-xs text-muted-foreground/60">(no budget)</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
