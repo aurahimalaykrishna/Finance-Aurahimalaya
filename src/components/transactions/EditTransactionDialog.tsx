@@ -66,7 +66,7 @@ export function EditTransactionDialog({
     }
   };
 
-  const handleTypeChange = (type: 'income' | 'expense') => {
+  const handleTypeChange = (type: 'income' | 'expense' | 'investment') => {
     setFormData({ ...formData, type, category_id: null });
   };
 
@@ -85,6 +85,7 @@ export function EditTransactionDialog({
                 <SelectContent>
                   <SelectItem value="income">Income</SelectItem>
                   <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="investment">Investment</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -106,7 +107,7 @@ export function EditTransactionDialog({
               categories={filteredCategories}
               value={formData.category_id || null}
               onValueChange={(v) => setFormData({ ...formData, category_id: v })}
-              type={formData.type}
+              type={formData.type as 'income' | 'expense' | 'investment'}
             />
           </div>
           <div className="space-y-2">

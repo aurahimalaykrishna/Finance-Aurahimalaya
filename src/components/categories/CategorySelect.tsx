@@ -5,7 +5,7 @@ interface CategorySelectProps {
   categories: Category[];
   value: string | null;
   onValueChange: (value: string | null) => void;
-  type?: 'income' | 'expense';
+  type?: 'income' | 'expense' | 'investment';
   placeholder?: string;
 }
 

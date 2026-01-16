@@ -43,11 +43,13 @@ export default function Reports() {
 
       const income = monthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
       const expenses = monthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
+      const investment = monthTransactions.filter(t => t.type === 'investment').reduce((sum, t) => sum + Number(t.amount), 0);
 
       return {
         month: format(date, 'MMM'),
         income,
         expenses,
+        investment,
         profit: income - expenses,
       };
     });
@@ -76,6 +78,18 @@ export default function Reports() {
       .sort((a, b) => b.value - a.value);
   }, [categories, filteredTransactions]);
 
+  const investmentByCategory = useMemo(() => {
+    return categories
+      .filter(c => c.type === 'investment')
+      .map(cat => ({
+        name: cat.name,
+        value: filteredTransactions.filter(t => t.category_id === cat.id).reduce((sum, t) => sum + Number(t.amount), 0),
+        color: cat.color || '#3b82f6',
+      }))
+      .filter(c => c.value > 0)
+      .sort((a, b) => b.value - a.value);
+  }, [categories, filteredTransactions]);
+
   const totalIncome = useMemo(() => 
     filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0),
     [filteredTransactions]
@@ -83,6 +97,11 @@ export default function Reports() {
   
   const totalExpenses = useMemo(() => 
     filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0),
+    [filteredTransactions]
+  );
+
+  const totalInvestment = useMemo(() => 
+    filteredTransactions.filter(t => t.type === 'investment').reduce((sum, t) => sum + Number(t.amount), 0),
     [filteredTransactions]
   );
 
@@ -125,6 +144,7 @@ export default function Reports() {
                 />
                 <Line type="monotone" dataKey="income" stroke="hsl(var(--success))" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="expenses" stroke="hsl(var(--destructive))" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="investment" stroke="#3b82f6" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="profit" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -132,6 +152,7 @@ export default function Reports() {
           <div className="flex justify-center gap-6 mt-4">
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-success" /><span className="text-sm text-muted-foreground">Income</span></div>
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-destructive" /><span className="text-sm text-muted-foreground">Expenses</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#3b82f6' }} /><span className="text-sm text-muted-foreground">Investment</span></div>
             <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-primary" /><span className="text-sm text-muted-foreground">Profit</span></div>
           </div>
         </CardContent>

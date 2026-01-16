@@ -7,7 +7,7 @@ import { useCompanyContext } from '@/contexts/CompanyContext';
 import { useProfile } from '@/hooks/useProfile';
 import { useBudgets } from '@/hooks/useBudgets';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, Building2, Target, AlertTriangle, Banknote, Landmark, LineChart } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, Building2, Target, AlertTriangle, Banknote, Landmark, LineChart, PiggyBank } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { getCurrencySymbol } from '@/lib/currencies';
@@ -51,6 +51,7 @@ export default function Dashboard() {
 
   const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
   const totalExpenses = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalInvestment = filteredTransactions.filter(t => t.type === 'investment').reduce((sum, t) => sum + Number(t.amount), 0);
   const netProfit = totalIncome - totalExpenses;
   const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : '0';
 
@@ -69,6 +70,7 @@ export default function Dashboard() {
       month: format(date, 'MMM'),
       income: monthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0),
       expenses: monthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0),
+      investment: monthTransactions.filter(t => t.type === 'investment').reduce((sum, t) => sum + Number(t.amount), 0),
     };
   });
 
@@ -135,12 +137,14 @@ export default function Dashboard() {
     const companyTransactions = filteredTransactions.filter(t => t.company_id === company.id);
     const income = companyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
     const expenses = companyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
+    const investment = companyTransactions.filter(t => t.type === 'investment').reduce((sum, t) => sum + Number(t.amount), 0);
     return {
       id: company.id,
       name: company.name,
       currency: company.currency || 'NPR',
       income,
       expenses,
+      investment,
       profit: income - expenses,
       transactionCount: companyTransactions.length,
     };
@@ -219,6 +223,19 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{transactions.length}</div>
             <p className="text-xs text-muted-foreground mt-1">Total transactions</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-blue-500/5">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Investments</CardTitle>
+            <PiggyBank className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{currencySymbol}{totalInvestment.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isAllCompanies ? 'All companies' : selectedCompany?.name || 'All time investments'}
+            </p>
           </CardContent>
         </Card>
       </div>

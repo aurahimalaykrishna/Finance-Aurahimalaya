@@ -9,7 +9,7 @@ export interface Transaction {
   category_id: string | null;
   company_id: string | null;
   supplier_id: string | null;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'investment';
   amount: number;
   description: string | null;
   date: string;
@@ -39,7 +39,7 @@ export interface CreateTransactionData {
   category_id?: string | null;
   company_id?: string | null;
   supplier_id?: string | null;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'investment';
   amount: number;
   description?: string;
   date: string;

@@ -8,7 +8,7 @@ export interface Category {
   user_id: string;
   company_id: string | null;
   name: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'investment';
   icon: string;
   color: string;
   created_at: string;
@@ -17,7 +17,7 @@ export interface Category {
 
 export interface CreateCategoryData {
   name: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'investment';
   icon?: string;
   color?: string;
   company_id?: string;
@@ -97,7 +97,7 @@ export function useCategories(companyId?: string | null) {
   };
 
   // Get all categories organized hierarchically (3 tiers)
-  const getHierarchicalCategories = (type?: 'income' | 'expense') => {
+  const getHierarchicalCategories = (type?: 'income' | 'expense' | 'investment') => {
     const filtered = type ? categories.filter(c => c.type === type) : categories;
     const tier1 = filtered.filter(c => c.parent_id === null);
     
@@ -114,6 +114,7 @@ export function useCategories(companyId?: string | null) {
 
   const incomeCategories = categories.filter(c => c.type === 'income');
   const expenseCategories = categories.filter(c => c.type === 'expense');
+  const investmentCategories = categories.filter(c => c.type === 'investment');
 
   const createCategory = useMutation({
     mutationFn: async (data: CreateCategoryData) => {
@@ -191,6 +192,7 @@ export function useCategories(companyId?: string | null) {
     categories,
     incomeCategories,
     expenseCategories,
+    investmentCategories,
     parentCategories,
     isLoading,
     createCategory,
