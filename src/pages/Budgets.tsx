@@ -16,10 +16,10 @@ import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { CategorySelect } from '@/components/categories/CategorySelect';
 
 export default function Budgets() {
-  const { budgets, isLoading, createBudget, deleteBudget } = useBudgets();
-  const { expenseCategories, categories, getCategoryDisplayName } = useCategories();
-  const { transactions } = useTransactions();
-  const { selectedCompany } = useCompanyContext();
+  const { selectedCompanyId, selectedCompany, isAllCompanies } = useCompanyContext();
+  const { budgets, isLoading, createBudget, deleteBudget } = useBudgets(selectedCompanyId);
+  const { expenseCategories, categories, getCategoryDisplayName } = useCategories(selectedCompanyId);
+  const { transactions } = useTransactions(selectedCompanyId);
   const currencySymbol = getCurrencySymbol(selectedCompany?.currency || 'NPR');
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<CreateBudgetData>({
@@ -27,13 +27,17 @@ export default function Budgets() {
     amount: 0,
     period: 'monthly',
     start_date: format(startOfMonth(new Date()), 'yyyy-MM-dd'),
+    company_id: selectedCompanyId,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createBudget.mutateAsync(formData);
+    if (isAllCompanies) {
+      return; // Cannot add budget without a specific company selected
+    }
+    await createBudget.mutateAsync({ ...formData, company_id: selectedCompanyId });
     setOpen(false);
-    setFormData({ category_id: '', amount: 0, period: 'monthly', start_date: format(startOfMonth(new Date()), 'yyyy-MM-dd') });
+    setFormData({ category_id: '', amount: 0, period: 'monthly', start_date: format(startOfMonth(new Date()), 'yyyy-MM-dd'), company_id: selectedCompanyId });
   };
 
   const getBudgetSpent = (categoryId: string) => {
@@ -71,7 +75,7 @@ export default function Budgets() {
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="mr-2 h-4 w-4" /> Add Budget</Button>
+            <Button disabled={isAllCompanies}><Plus className="mr-2 h-4 w-4" /> Add Budget</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
