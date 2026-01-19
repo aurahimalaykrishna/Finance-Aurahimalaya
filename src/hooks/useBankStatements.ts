@@ -50,6 +50,43 @@ export function useBankStatements(bankAccountId?: string | null) {
     enabled: !!user && !!bankAccountId,
   });
 
+  // Check for duplicates against existing database records
+  const checkDuplicates = async (data: CreateBankStatementData[]): Promise<{
+    duplicates: CreateBankStatementData[];
+    unique: CreateBankStatementData[];
+  }> => {
+    if (data.length === 0 || !bankAccountId) {
+      return { duplicates: [], unique: data };
+    }
+
+    // Fetch existing statements for the bank account
+    const { data: existing } = await supabase
+      .from('bank_statements')
+      .select('statement_date, amount, description, reference_number')
+      .eq('bank_account_id', bankAccountId);
+    
+    const existingSet = new Set(
+      (existing || []).map(s => 
+        `${s.statement_date}|${s.amount}|${(s.description || '').toLowerCase().trim()}|${(s.reference_number || '').toLowerCase().trim()}`
+      )
+    );
+    
+    const duplicates: CreateBankStatementData[] = [];
+    const unique: CreateBankStatementData[] = [];
+    
+    data.forEach(statement => {
+      const key = `${statement.statement_date}|${statement.amount}|${(statement.description || '').toLowerCase().trim()}|${(statement.reference_number || '').toLowerCase().trim()}`;
+      if (existingSet.has(key)) {
+        duplicates.push(statement);
+      } else {
+        unique.push(statement);
+        existingSet.add(key); // Prevent duplicates within the batch too
+      }
+    });
+    
+    return { duplicates, unique };
+  };
+
   const createBulkStatements = useMutation({
     mutationFn: async (data: CreateBankStatementData[]) => {
       const statementsToInsert = data.map(s => ({
@@ -254,5 +291,6 @@ export function useBankStatements(bankAccountId?: string | null) {
     matchMultipleStatements,
     unmatchStatement,
     deleteStatements,
+    checkDuplicates,
   };
 }

@@ -29,7 +29,7 @@ import { exportToCSV, exportToExcel } from '@/utils/exportUtils';
 
 export default function Transactions() {
   const { selectedCompanyId, selectedCompany, companies, isAllCompanies } = useCompanyContext();
-  const { transactions, isLoading, createTransaction, updateTransaction, deleteTransaction, createBulkTransactions, bulkDeleteTransactions, bulkUpdateTransactions } = useTransactions(selectedCompanyId);
+  const { transactions, isLoading, createTransaction, updateTransaction, deleteTransaction, createBulkTransactions, bulkDeleteTransactions, bulkUpdateTransactions, checkDuplicates } = useTransactions(selectedCompanyId);
   const { categories, getCategoryDisplayName } = useCategories(selectedCompanyId);
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -84,14 +84,31 @@ export default function Transactions() {
     description: string;
     type: 'income' | 'expense' | 'investment';
     category_id?: string;
-  }>) => {
+  }>, skipDatabaseDuplicates?: boolean) => {
     // Add company_id to each imported transaction
     const dataWithCompany = data.map(t => ({
       ...t,
       company_id: selectedCompanyId,
     }));
-    await createBulkTransactions.mutateAsync(dataWithCompany);
-  }, [createBulkTransactions, selectedCompanyId]);
+
+    if (skipDatabaseDuplicates) {
+      // Check for duplicates and filter them out
+      const { unique, duplicates } = await checkDuplicates(dataWithCompany);
+      
+      if (duplicates.length > 0) {
+        // Toast will be shown in the hook's onSuccess
+        console.log(`Skipping ${duplicates.length} duplicate transactions`);
+      }
+      
+      if (unique.length === 0) {
+        throw new Error('All transactions are duplicates and already exist in the database.');
+      }
+      
+      await createBulkTransactions.mutateAsync(unique);
+    } else {
+      await createBulkTransactions.mutateAsync(dataWithCompany);
+    }
+  }, [createBulkTransactions, selectedCompanyId, checkDuplicates]);
 
   const handleSort = (field: SortField) => {
     if (field === sortField) {

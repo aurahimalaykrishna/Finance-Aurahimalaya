@@ -51,6 +51,43 @@ export function useTransactions(companyId?: string | null) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Check for duplicates against existing database records
+  const checkDuplicates = async (data: CreateTransactionData[]): Promise<{
+    duplicates: CreateTransactionData[];
+    unique: CreateTransactionData[];
+  }> => {
+    if (data.length === 0 || !companyId) {
+      return { duplicates: [], unique: data };
+    }
+
+    // Fetch existing transactions for the company
+    const { data: existing } = await supabase
+      .from('transactions')
+      .select('date, amount, description')
+      .eq('company_id', companyId);
+    
+    const existingSet = new Set(
+      (existing || []).map(t => 
+        `${t.date}|${t.amount}|${(t.description || '').toLowerCase().trim()}`
+      )
+    );
+    
+    const duplicates: CreateTransactionData[] = [];
+    const unique: CreateTransactionData[] = [];
+    
+    data.forEach(transaction => {
+      const key = `${transaction.date}|${transaction.amount}|${(transaction.description || '').toLowerCase().trim()}`;
+      if (existingSet.has(key)) {
+        duplicates.push(transaction);
+      } else {
+        unique.push(transaction);
+        existingSet.add(key); // Prevent duplicates within the batch too
+      }
+    });
+    
+    return { duplicates, unique };
+  };
+
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ['transactions', user?.id, companyId],
     queryFn: async () => {
@@ -242,5 +279,6 @@ export function useTransactions(companyId?: string | null) {
     createBulkTransactions,
     bulkDeleteTransactions,
     bulkUpdateTransactions,
+    checkDuplicates,
   };
 }

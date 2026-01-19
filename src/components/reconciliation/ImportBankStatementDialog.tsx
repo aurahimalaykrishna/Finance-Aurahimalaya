@@ -1,21 +1,24 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Upload, FileSpreadsheet } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Upload, FileSpreadsheet, Copy } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import type { BankAccount } from '@/hooks/useBankAccounts';
 import type { CreateBankStatementData } from '@/hooks/useBankStatements';
+import { findBankStatementDuplicatesInBatch } from '@/utils/importUtils';
 
 interface ImportBankStatementDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bankAccounts: BankAccount[];
-  onImport: (data: CreateBankStatementData[]) => void;
+  onImport: (data: CreateBankStatementData[], skipDuplicates?: boolean) => void;
 }
 
 interface ColumnMapping {
@@ -38,11 +41,17 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
   const [mapping, setMapping] = useState<ColumnMapping>({ date: '', description: '', amount: '' });
   const [previewData, setPreviewData] = useState<CreateBankStatementData[]>([]);
   const [amountMode, setAmountMode] = useState<AmountMode>('single');
+  const [skipDatabaseDuplicates, setSkipDatabaseDuplicates] = useState(true);
   
   // Multi-sheet support
   const [sheets, setSheets] = useState<string[]>([]);
   const [selectedSheet, setSelectedSheet] = useState<string>('');
   const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
+
+  // Detect duplicates within the file
+  const duplicatesInFile = useMemo(() => {
+    return findBankStatementDuplicatesInBatch(previewData);
+  }, [previewData]);
 
   // Auto-detect column mappings based on common header patterns
   const autoDetectColumns = (cols: string[]) => {
@@ -236,7 +245,7 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
   };
 
   const handleImport = () => {
-    onImport(previewData);
+    onImport(previewData, skipDatabaseDuplicates);
     handleClose();
   };
 
@@ -248,6 +257,7 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
     setPreviewData([]);
     setSelectedAccountId('');
     setAmountMode('single');
+    setSkipDatabaseDuplicates(true);
     setSheets([]);
     setSelectedSheet('');
     setWorkbook(null);
@@ -478,9 +488,17 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
 
         {step === 'preview' && (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Preview: {previewData.length} entries will be imported
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Preview: {previewData.length} entries will be imported
+              </p>
+              {duplicatesInFile.size > 0 && (
+                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                  <Copy className="h-3 w-3 mr-1" />
+                  {duplicatesInFile.size} duplicates in file
+                </Badge>
+              )}
+            </div>
 
             <div className="border rounded-md max-h-64 overflow-y-auto">
               <Table>
@@ -490,23 +508,39 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
                     <TableHead>Description</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
                     {mapping.balance && <TableHead className="text-right">Balance</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {previewData.slice(0, 10).map((item, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell>{item.statement_date}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{item.description}</TableCell>
-                      <TableCell className="text-right">${item.amount.toFixed(2)}</TableCell>
-                      <TableCell>{item.transaction_type}</TableCell>
-                      {mapping.balance && (
-                        <TableCell className="text-right">
-                          {item.running_balance !== undefined ? `$${item.running_balance.toFixed(2)}` : '-'}
+                  {previewData.slice(0, 10).map((item, idx) => {
+                    const isDuplicate = duplicatesInFile.has(idx);
+                    return (
+                      <TableRow key={idx} className={isDuplicate ? 'bg-amber-500/10' : ''}>
+                        <TableCell>{item.statement_date}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{item.description}</TableCell>
+                        <TableCell className="text-right">${item.amount.toFixed(2)}</TableCell>
+                        <TableCell>{item.transaction_type}</TableCell>
+                        <TableCell>
+                          {isDuplicate ? (
+                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-xs">
+                              <Copy className="h-3 w-3 mr-1" />
+                              Duplicate
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-xs">
+                              Valid
+                            </Badge>
+                          )}
                         </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
+                        {mapping.balance && (
+                          <TableCell className="text-right">
+                            {item.running_balance !== undefined ? `$${item.running_balance.toFixed(2)}` : '-'}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -515,6 +549,19 @@ export function ImportBankStatementDialog({ open, onOpenChange, bankAccounts, on
                 ...and {previewData.length - 10} more entries
               </p>
             )}
+
+            {/* Skip database duplicates option */}
+            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+              <Checkbox
+                id="skip-statement-duplicates"
+                checked={skipDatabaseDuplicates}
+                onCheckedChange={(checked) => setSkipDatabaseDuplicates(checked === true)}
+              />
+              <Label htmlFor="skip-statement-duplicates" className="text-sm cursor-pointer flex items-center gap-2">
+                <Copy className="h-4 w-4 text-muted-foreground" />
+                Skip statements that already exist in the database
+              </Label>
+            </div>
 
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setStep('mapping')}>Back</Button>
