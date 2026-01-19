@@ -1,11 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Upload, FileSpreadsheet, ArrowLeft, ArrowRight, Check, AlertCircle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Upload, FileSpreadsheet, ArrowLeft, ArrowRight, Check, AlertCircle, Copy } from 'lucide-react';
 import { ColumnMappingStep } from './ColumnMappingStep';
 import { PreviewStep } from './PreviewStep';
 import { ImportProgress } from './ImportProgress';
-import { parseFile, ColumnMapping, ParsedRow, validateRows } from '@/utils/importUtils';
+import { parseFile, ColumnMapping, ParsedRow, validateRows, findDuplicatesInBatch } from '@/utils/importUtils';
 import { useToast } from '@/hooks/use-toast';
 
 interface ImportTransactionsDialogProps {
@@ -16,9 +18,9 @@ interface ImportTransactionsDialogProps {
     date: string;
     amount: number;
     description: string;
-    type: 'income' | 'expense';
+    type: 'income' | 'expense' | 'investment';
     category_id?: string;
-  }>) => Promise<void>;
+  }>, skipDatabaseDuplicates?: boolean) => Promise<void>;
 }
 
 type Step = 'upload' | 'mapping' | 'preview' | 'importing' | 'complete';
@@ -43,8 +45,14 @@ export function ImportTransactionsDialog({
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 });
-  const [importResult, setImportResult] = useState({ success: 0, failed: 0 });
+  const [importResult, setImportResult] = useState({ success: 0, failed: 0, skippedDuplicates: 0 });
+  const [skipDatabaseDuplicates, setSkipDatabaseDuplicates] = useState(true);
   const { toast } = useToast();
+
+  // Detect duplicates within the file
+  const duplicatesInFile = useMemo(() => {
+    return findDuplicatesInBatch(parsedRows);
+  }, [parsedRows]);
 
   const resetState = useCallback(() => {
     setStep('upload');
@@ -55,7 +63,8 @@ export function ImportTransactionsDialog({
     setParsedRows([]);
     setSelectedRows(new Set());
     setImportProgress({ current: 0, total: 0 });
-    setImportResult({ success: 0, failed: 0 });
+    setImportResult({ success: 0, failed: 0, skippedDuplicates: 0 });
+    setSkipDatabaseDuplicates(true);
   }, []);
 
   const handleClose = useCallback((open: boolean) => {
@@ -138,7 +147,7 @@ export function ImportTransactionsDialog({
         date: row.date,
         amount: row.amount,
         description: row.description,
-        type: row.type,
+        type: row.type as 'income' | 'expense' | 'investment',
         category_id: row.category,
       }));
 
@@ -155,23 +164,10 @@ export function ImportTransactionsDialog({
     setImportProgress({ current: 0, total: toImport.length });
 
     try {
-      // Batch import in chunks
-      const batchSize = 50;
-      let success = 0;
-      let failed = 0;
-
-      for (let i = 0; i < toImport.length; i += batchSize) {
-        const batch = toImport.slice(i, i + batchSize);
-        try {
-          await onImport(batch);
-          success += batch.length;
-        } catch {
-          failed += batch.length;
-        }
-        setImportProgress({ current: Math.min(i + batchSize, toImport.length), total: toImport.length });
-      }
-
-      setImportResult({ success, failed });
+      // Pass skipDatabaseDuplicates to the onImport callback
+      await onImport(toImport, skipDatabaseDuplicates);
+      
+      setImportResult({ success: toImport.length, failed: 0, skippedDuplicates: 0 });
       setStep('complete');
     } catch (error) {
       toast({
@@ -181,10 +177,11 @@ export function ImportTransactionsDialog({
       });
       setStep('preview');
     }
-  }, [parsedRows, selectedRows, onImport, toast]);
+  }, [parsedRows, selectedRows, onImport, toast, skipDatabaseDuplicates]);
 
   const validCount = parsedRows.filter(r => r.isValid).length;
   const invalidCount = parsedRows.filter(r => !r.isValid).length;
+  const duplicateCount = duplicatesInFile.size;
   const selectedCount = selectedRows.size;
 
   return (
@@ -240,11 +237,27 @@ export function ImportTransactionsDialog({
           )}
 
           {step === 'preview' && (
-            <PreviewStep
-              rows={parsedRows}
-              selectedRows={selectedRows}
-              onSelectionChange={setSelectedRows}
-            />
+            <div className="space-y-4">
+              <PreviewStep
+                rows={parsedRows}
+                selectedRows={selectedRows}
+                onSelectionChange={setSelectedRows}
+                duplicatesInFile={duplicatesInFile}
+              />
+              
+              {/* Skip database duplicates option */}
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                <Checkbox
+                  id="skip-duplicates"
+                  checked={skipDatabaseDuplicates}
+                  onCheckedChange={(checked) => setSkipDatabaseDuplicates(checked === true)}
+                />
+                <Label htmlFor="skip-duplicates" className="text-sm cursor-pointer flex items-center gap-2">
+                  <Copy className="h-4 w-4 text-muted-foreground" />
+                  Skip transactions that already exist in the database
+                </Label>
+              </div>
+            </div>
           )}
 
           {step === 'importing' && (
@@ -286,7 +299,7 @@ export function ImportTransactionsDialog({
 
             <div className="flex items-center gap-4">
               {step === 'preview' && (
-                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                <div className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
                   <span className="text-primary">{validCount} valid</span>
                   {invalidCount > 0 && (
                     <>
@@ -294,6 +307,15 @@ export function ImportTransactionsDialog({
                       <span className="text-destructive flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
                         {invalidCount} invalid
+                      </span>
+                    </>
+                  )}
+                  {duplicateCount > 0 && (
+                    <>
+                      <span>•</span>
+                      <span className="text-amber-500 flex items-center gap-1">
+                        <Copy className="h-3 w-3" />
+                        {duplicateCount} duplicates
                       </span>
                     </>
                   )}

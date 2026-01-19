@@ -14,7 +14,7 @@ export interface ParsedRow {
   date: string;
   amount: number;
   description: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'investment';
   category?: string;
   isValid: boolean;
   errors: string[];
@@ -229,7 +229,7 @@ export function parseAmount(value: unknown): number | null {
 export function determineTransactionType(
   amount: number,
   typeValue?: unknown
-): 'income' | 'expense' {
+): 'income' | 'expense' | 'investment' {
   // If type column is provided, try to parse it
   if (typeValue) {
     const typeStr = String(typeValue).toLowerCase().trim();
@@ -238,6 +238,9 @@ export function determineTransactionType(
     }
     if (['expense', 'debit', 'withdrawal', 'out', 'dr', 'payment'].some(t => typeStr.includes(t))) {
       return 'expense';
+    }
+    if (['investment', 'invest', 'portfolio', 'stock', 'mutual fund'].some(t => typeStr.includes(t))) {
+      return 'investment';
     }
   }
   
@@ -366,4 +369,55 @@ export function validateRows(
   existingCategories: Array<{ id: string; name: string; type: string; parent_id?: string | null }>
 ): ParsedRow[] {
   return rows.map(row => validateAndParseRow(row, mapping, existingCategories));
+}
+
+// Find duplicate rows within the same batch based on date + amount + description
+export function findDuplicatesInBatch(rows: ParsedRow[]): Set<number> {
+  const duplicateIndices = new Set<number>();
+  const seen = new Map<string, number>();
+  
+  rows.forEach((row, index) => {
+    if (!row.isValid) return; // Skip invalid rows
+    
+    // Create a unique key based on date + amount + description (normalized)
+    const key = `${row.date}|${row.amount}|${row.description?.toLowerCase().trim() || ''}`;
+    
+    if (seen.has(key)) {
+      duplicateIndices.add(index);
+      duplicateIndices.add(seen.get(key)!);
+    } else {
+      seen.set(key, index);
+    }
+  });
+  
+  return duplicateIndices;
+}
+
+// Find duplicate bank statement entries within a batch
+export interface BankStatementRow {
+  statement_date: string;
+  amount: number;
+  description?: string;
+  reference_number?: string;
+}
+
+export function findBankStatementDuplicatesInBatch(rows: BankStatementRow[]): Set<number> {
+  const duplicateIndices = new Set<number>();
+  const seen = new Map<string, number>();
+  
+  rows.forEach((row, index) => {
+    // Create key based on date + amount + description (or reference if available)
+    const descKey = row.description?.toLowerCase().trim() || '';
+    const refKey = row.reference_number?.toLowerCase().trim() || '';
+    const key = `${row.statement_date}|${row.amount}|${descKey}|${refKey}`;
+    
+    if (seen.has(key)) {
+      duplicateIndices.add(index);
+      duplicateIndices.add(seen.get(key)!);
+    } else {
+      seen.set(key, index);
+    }
+  });
+  
+  return duplicateIndices;
 }
