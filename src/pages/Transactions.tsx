@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText, ArrowUpDown, ChevronUp, ChevronDown, Truck, X, PiggyBank } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText, ArrowUpDown, ChevronUp, ChevronDown, Truck, X, PiggyBank, Split } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
@@ -21,6 +21,7 @@ import { ImportTransactionsDialog } from '@/components/transactions/ImportTransa
 import { EditTransactionDialog } from '@/components/transactions/EditTransactionDialog';
 import { ViewTransactionDialog } from '@/components/transactions/ViewTransactionDialog';
 import { BulkActionsDialog } from '@/components/transactions/BulkActionsDialog';
+import { SplitTransactionDialog } from '@/components/transactions/SplitTransactionDialog';
 import { CategorySelect } from '@/components/categories/CategorySelect';
 import { SupplierSelect } from '@/components/suppliers/SupplierSelect';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
@@ -35,6 +36,7 @@ export default function Transactions() {
   const [importOpen, setImportOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [viewingTransaction, setViewingTransaction] = useState<Transaction | null>(null);
+  const [splittingTransaction, setSplittingTransaction] = useState<Transaction | null>(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
@@ -460,6 +462,17 @@ export default function Transactions() {
           setEditingTransaction(viewingTransaction);
           setViewingTransaction(null);
         }}
+        onSplit={() => {
+          setSplittingTransaction(viewingTransaction);
+          setViewingTransaction(null);
+        }}
+      />
+
+      <SplitTransactionDialog
+        open={!!splittingTransaction}
+        onOpenChange={(open) => !open && setSplittingTransaction(null)}
+        transaction={splittingTransaction}
+        categories={categories}
       />
 
       <BulkActionsDialog
@@ -563,11 +576,16 @@ export default function Transactions() {
                       </TableCell>
                     )}
                     <TableCell>
-                      {t.categories && (
+                      {t.is_split ? (
+                        <Badge variant="outline" className="font-normal text-xs">
+                          <Split className="h-3 w-3 mr-1" />
+                          Split
+                        </Badge>
+                      ) : t.categories ? (
                         <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs" style={{ backgroundColor: `${t.categories.color}20`, color: t.categories.color }}>
                           {getTransactionCategoryDisplay(t)}
                         </span>
-                      )}
+                      ) : null}
                     </TableCell>
                     <TableCell>
                       {t.suppliers && (
@@ -590,6 +608,9 @@ export default function Transactions() {
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" onClick={() => setViewingTransaction(t)}>
                           <Eye className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setSplittingTransaction(t)}>
+                          <Split className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => setEditingTransaction(t)}>
                           <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />

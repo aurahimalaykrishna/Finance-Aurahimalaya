@@ -665,6 +665,51 @@ export type Database = {
           },
         ]
       }
+      transaction_splits: {
+        Row: {
+          amount: number
+          category_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          transaction_id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          transaction_id: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          transaction_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_category"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_transaction"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
@@ -677,6 +722,7 @@ export type Database = {
           description: string | null
           id: string
           is_reconciled: boolean | null
+          is_split: boolean | null
           reconciled_at: string | null
           supplier_id: string | null
           type: Database["public"]["Enums"]["transaction_type"]
@@ -694,6 +740,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_reconciled?: boolean | null
+          is_split?: boolean | null
           reconciled_at?: string | null
           supplier_id?: string | null
           type: Database["public"]["Enums"]["transaction_type"]
@@ -711,6 +758,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_reconciled?: boolean | null
+          is_split?: boolean | null
           reconciled_at?: string | null
           supplier_id?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
