@@ -3,13 +3,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowUpRight, ArrowDownRight, CheckCircle2, XCircle, Building2, Pencil, Truck } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, CheckCircle2, XCircle, Building2, Pencil, Truck, Split } from 'lucide-react';
 import { format } from 'date-fns';
 import { getCurrencySymbol } from '@/lib/currencies';
 import { Transaction } from '@/hooks/useTransactions';
 import { Category } from '@/hooks/useCategories';
 import { TransactionNotes } from './TransactionNotes';
 import { ReceiptUpload } from './ReceiptUpload';
+import { useTransactionSplits } from '@/hooks/useTransactionSplits';
 
 interface ViewTransactionDialogProps {
   open: boolean;
@@ -17,6 +18,7 @@ interface ViewTransactionDialogProps {
   transaction: Transaction | null;
   categories?: Category[];
   onEdit?: () => void;
+  onSplit?: () => void;
 }
 
 export function ViewTransactionDialog({
@@ -25,7 +27,9 @@ export function ViewTransactionDialog({
   transaction,
   categories = [],
   onEdit,
+  onSplit,
 }: ViewTransactionDialogProps) {
+  const { splits, isLoading: splitsLoading } = useTransactionSplits(transaction?.id);
   if (!transaction) return null;
 
   const currencySymbol = getCurrencySymbol(transaction.currency || 'NPR');
@@ -95,7 +99,38 @@ export function ViewTransactionDialog({
             <div className="space-y-4">
               <DetailRow label="Description" value={transaction.description || '-'} />
               
-              {transaction.categories && (
+              {/* Show splits breakdown if transaction is split */}
+              {transaction.is_split && splits.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Split className="h-4 w-4" />
+                    Category Breakdown
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+                    {splits.map(split => (
+                      <div key={split.id} className="flex justify-between items-center">
+                        <span
+                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs"
+                          style={{
+                            backgroundColor: `${split.categories?.color || '#6366f1'}20`,
+                            color: split.categories?.color || '#6366f1',
+                          }}
+                        >
+                          {split.categories?.name || 'Uncategorized'}
+                        </span>
+                        <div className="text-right">
+                          <span className="font-medium text-sm">
+                            {currencySymbol}{Number(split.amount).toLocaleString()}
+                          </span>
+                          <span className="text-xs text-muted-foreground ml-2">
+                            ({((split.amount / Number(transaction.amount)) * 100).toFixed(0)}%)
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : transaction.categories && (
                 <DetailRow
                   label="Category"
                   value={
@@ -209,6 +244,12 @@ export function ViewTransactionDialog({
 
         {/* Footer */}
         <div className="flex gap-2 justify-end p-4 border-t">
+          {onSplit && (
+            <Button variant="outline" onClick={onSplit}>
+              <Split className="h-4 w-4 mr-2" />
+              {transaction.is_split ? 'Edit Split' : 'Split'}
+            </Button>
+          )}
           {onEdit && (
             <Button variant="outline" onClick={onEdit}>
               <Pencil className="h-4 w-4 mr-2" />

@@ -19,6 +19,7 @@ export interface Transaction {
   is_reconciled?: boolean;
   reconciled_at?: string | null;
   bank_statement_id?: string | null;
+  is_split?: boolean;
   categories?: {
     id: string;
     name: string;
