@@ -55,37 +55,85 @@ export default function Reports() {
     });
   }, [filteredTransactions]);
 
+  // Helper to get the root parent category
+  const getRootCategory = (categoryId: string | null): string | null => {
+    if (!categoryId) return null;
+    const category = categories.find(c => c.id === categoryId);
+    if (!category) return null;
+    if (!category.parent_id) return categoryId;
+    return getRootCategory(category.parent_id);
+  };
+
   const incomeByCategory = useMemo(() => {
-    return categories
-      .filter(c => c.type === 'income')
-      .map(cat => ({
-        name: cat.name,
-        value: filteredTransactions.filter(t => t.category_id === cat.id).reduce((sum, t) => sum + Number(t.amount), 0),
-        color: cat.color || '#6366f1',
-      }))
+    const parentCategories = categories.filter(c => c.type === 'income' && !c.parent_id);
+    return parentCategories
+      .map(cat => {
+        // Get all child category IDs (including nested)
+        const getAllChildIds = (parentId: string): string[] => {
+          const children = categories.filter(c => c.parent_id === parentId);
+          return [parentId, ...children.flatMap(c => getAllChildIds(c.id))];
+        };
+        const allCategoryIds = getAllChildIds(cat.id);
+        
+        const value = filteredTransactions
+          .filter(t => t.category_id && allCategoryIds.includes(t.category_id))
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+        
+        return {
+          name: cat.name,
+          value,
+          color: cat.color || '#6366f1',
+        };
+      })
       .filter(c => c.value > 0);
   }, [categories, filteredTransactions]);
 
   const expensesByCategory = useMemo(() => {
-    return categories
-      .filter(c => c.type === 'expense')
-      .map(cat => ({
-        name: cat.name,
-        value: filteredTransactions.filter(t => t.category_id === cat.id).reduce((sum, t) => sum + Number(t.amount), 0),
-        color: cat.color || '#ef4444',
-      }))
+    const parentCategories = categories.filter(c => c.type === 'expense' && !c.parent_id);
+    return parentCategories
+      .map(cat => {
+        // Get all child category IDs (including nested)
+        const getAllChildIds = (parentId: string): string[] => {
+          const children = categories.filter(c => c.parent_id === parentId);
+          return [parentId, ...children.flatMap(c => getAllChildIds(c.id))];
+        };
+        const allCategoryIds = getAllChildIds(cat.id);
+        
+        const value = filteredTransactions
+          .filter(t => t.category_id && allCategoryIds.includes(t.category_id))
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+        
+        return {
+          name: cat.name,
+          value,
+          color: cat.color || '#ef4444',
+        };
+      })
       .filter(c => c.value > 0)
       .sort((a, b) => b.value - a.value);
   }, [categories, filteredTransactions]);
 
   const investmentByCategory = useMemo(() => {
-    return categories
-      .filter(c => c.type === 'investment')
-      .map(cat => ({
-        name: cat.name,
-        value: filteredTransactions.filter(t => t.category_id === cat.id).reduce((sum, t) => sum + Number(t.amount), 0),
-        color: cat.color || '#3b82f6',
-      }))
+    const parentCategories = categories.filter(c => c.type === 'investment' && !c.parent_id);
+    return parentCategories
+      .map(cat => {
+        // Get all child category IDs (including nested)
+        const getAllChildIds = (parentId: string): string[] => {
+          const children = categories.filter(c => c.parent_id === parentId);
+          return [parentId, ...children.flatMap(c => getAllChildIds(c.id))];
+        };
+        const allCategoryIds = getAllChildIds(cat.id);
+        
+        const value = filteredTransactions
+          .filter(t => t.category_id && allCategoryIds.includes(t.category_id))
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+        
+        return {
+          name: cat.name,
+          value,
+          color: cat.color || '#3b82f6',
+        };
+      })
       .filter(c => c.value > 0)
       .sort((a, b) => b.value - a.value);
   }, [categories, filteredTransactions]);
