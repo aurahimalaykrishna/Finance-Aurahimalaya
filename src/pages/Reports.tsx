@@ -76,7 +76,7 @@ export default function Reports() {
         const allCategoryIds = getAllChildIds(cat.id);
         
         const value = filteredTransactions
-          .filter(t => t.category_id && allCategoryIds.includes(t.category_id))
+          .filter(t => t.type === 'income' && t.category_id && allCategoryIds.includes(t.category_id))
           .reduce((sum, t) => sum + Number(t.amount), 0);
         
         return {
@@ -100,7 +100,7 @@ export default function Reports() {
         const allCategoryIds = getAllChildIds(cat.id);
         
         const value = filteredTransactions
-          .filter(t => t.category_id && allCategoryIds.includes(t.category_id))
+          .filter(t => t.type === 'expense' && t.category_id && allCategoryIds.includes(t.category_id))
           .reduce((sum, t) => sum + Number(t.amount), 0);
         
         return {
@@ -125,7 +125,7 @@ export default function Reports() {
         const allCategoryIds = getAllChildIds(cat.id);
         
         const value = filteredTransactions
-          .filter(t => t.category_id && allCategoryIds.includes(t.category_id))
+          .filter(t => t.type === 'investment' && t.category_id && allCategoryIds.includes(t.category_id))
           .reduce((sum, t) => sum + Number(t.amount), 0);
         
         return {
