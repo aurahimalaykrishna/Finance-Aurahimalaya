@@ -348,6 +348,335 @@ export type Database = {
           },
         ]
       }
+      employee_leave_balances: {
+        Row: {
+          created_at: string | null
+          employee_id: string
+          fiscal_year: string
+          home_leave_accrued: number | null
+          home_leave_carried_forward: number | null
+          home_leave_used: number | null
+          id: string
+          maternity_leave_used: number | null
+          mourning_leave_used: number | null
+          paternity_leave_used: number | null
+          public_holidays_used: number | null
+          sick_leave_accrued: number | null
+          sick_leave_carried_forward: number | null
+          sick_leave_used: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          employee_id: string
+          fiscal_year: string
+          home_leave_accrued?: number | null
+          home_leave_carried_forward?: number | null
+          home_leave_used?: number | null
+          id?: string
+          maternity_leave_used?: number | null
+          mourning_leave_used?: number | null
+          paternity_leave_used?: number | null
+          public_holidays_used?: number | null
+          sick_leave_accrued?: number | null
+          sick_leave_carried_forward?: number | null
+          sick_leave_used?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          employee_id?: string
+          fiscal_year?: string
+          home_leave_accrued?: number | null
+          home_leave_carried_forward?: number | null
+          home_leave_used?: number | null
+          id?: string
+          maternity_leave_used?: number | null
+          mourning_leave_used?: number | null
+          paternity_leave_used?: number | null
+          public_holidays_used?: number | null
+          sick_leave_accrued?: number | null
+          sick_leave_carried_forward?: number | null
+          sick_leave_used?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_leave_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_leave_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          days_requested: number
+          employee_id: string
+          end_date: string
+          id: string
+          leave_type: string
+          reason: string | null
+          start_date: string
+          status: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          days_requested: number
+          employee_id: string
+          end_date: string
+          id?: string
+          leave_type: string
+          reason?: string | null
+          start_date: string
+          status?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          days_requested?: number
+          employee_id?: string
+          end_date?: string
+          id?: string
+          leave_type?: string
+          reason?: string | null
+          start_date?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_payslips: {
+        Row: {
+          basic_salary: number
+          created_at: string | null
+          dearness_allowance: number | null
+          employee_id: string
+          festival_allowance: number | null
+          gross_salary: number
+          id: string
+          income_tax: number | null
+          leave_days: number | null
+          net_salary: number
+          other_allowances: number | null
+          other_deductions: number | null
+          overtime_amount: number | null
+          overtime_hours: number | null
+          payroll_run_id: string
+          present_days: number | null
+          social_security_tax: number | null
+          ssf_employee_contribution: number | null
+          ssf_employer_contribution: number | null
+          total_deductions: number
+          working_days: number | null
+        }
+        Insert: {
+          basic_salary: number
+          created_at?: string | null
+          dearness_allowance?: number | null
+          employee_id: string
+          festival_allowance?: number | null
+          gross_salary: number
+          id?: string
+          income_tax?: number | null
+          leave_days?: number | null
+          net_salary: number
+          other_allowances?: number | null
+          other_deductions?: number | null
+          overtime_amount?: number | null
+          overtime_hours?: number | null
+          payroll_run_id: string
+          present_days?: number | null
+          social_security_tax?: number | null
+          ssf_employee_contribution?: number | null
+          ssf_employer_contribution?: number | null
+          total_deductions: number
+          working_days?: number | null
+        }
+        Update: {
+          basic_salary?: number
+          created_at?: string | null
+          dearness_allowance?: number | null
+          employee_id?: string
+          festival_allowance?: number | null
+          gross_salary?: number
+          id?: string
+          income_tax?: number | null
+          leave_days?: number | null
+          net_salary?: number
+          other_allowances?: number | null
+          other_deductions?: number | null
+          overtime_amount?: number | null
+          overtime_hours?: number | null
+          payroll_run_id?: string
+          present_days?: number | null
+          social_security_tax?: number | null
+          ssf_employee_contribution?: number | null
+          ssf_employer_contribution?: number | null
+          total_deductions?: number
+          working_days?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_payslips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_payslips_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employees: {
+        Row: {
+          basic_salary: number
+          citizenship_document_url: string | null
+          citizenship_number: string
+          company_id: string
+          created_at: string | null
+          date_of_birth: string
+          date_of_join: string
+          dearness_allowance: number | null
+          department: string | null
+          designation: string | null
+          employee_code: string | null
+          employment_type: string
+          full_name: string
+          gender: string
+          id: string
+          is_active: boolean | null
+          marital_status: string
+          pan_number: string | null
+          probation_end_date: string | null
+          ssf_number: string | null
+          termination_date: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          basic_salary?: number
+          citizenship_document_url?: string | null
+          citizenship_number: string
+          company_id: string
+          created_at?: string | null
+          date_of_birth: string
+          date_of_join: string
+          dearness_allowance?: number | null
+          department?: string | null
+          designation?: string | null
+          employee_code?: string | null
+          employment_type: string
+          full_name: string
+          gender: string
+          id?: string
+          is_active?: boolean | null
+          marital_status?: string
+          pan_number?: string | null
+          probation_end_date?: string | null
+          ssf_number?: string | null
+          termination_date?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          basic_salary?: number
+          citizenship_document_url?: string | null
+          citizenship_number?: string
+          company_id?: string
+          created_at?: string | null
+          date_of_birth?: string
+          date_of_join?: string
+          dearness_allowance?: number | null
+          department?: string | null
+          designation?: string | null
+          employee_code?: string | null
+          employment_type?: string
+          full_name?: string
+          gender?: string
+          id?: string
+          is_active?: boolean | null
+          marital_status?: string
+          pan_number?: string | null
+          probation_end_date?: string | null
+          ssf_number?: string | null
+          termination_date?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_runs: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          finalized_at: string | null
+          fiscal_year: string
+          id: string
+          month: number
+          processed_at: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          finalized_at?: string | null
+          fiscal_year: string
+          id?: string
+          month: number
+          processed_at?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          finalized_at?: string | null
+          fiscal_year?: string
+          id?: string
+          month?: number
+          processed_at?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -544,6 +873,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tax_slabs: {
+        Row: {
+          created_at: string | null
+          fiscal_year: string
+          id: string
+          marital_status: string
+          max_amount: number | null
+          min_amount: number
+          tax_rate: number
+        }
+        Insert: {
+          created_at?: string | null
+          fiscal_year: string
+          id?: string
+          marital_status: string
+          max_amount?: number | null
+          min_amount: number
+          tax_rate: number
+        }
+        Update: {
+          created_at?: string | null
+          fiscal_year?: string
+          id?: string
+          marital_status?: string
+          max_amount?: number | null
+          min_amount?: number
+          tax_rate?: number
+        }
+        Relationships: []
       }
       team_invitations: {
         Row: {
