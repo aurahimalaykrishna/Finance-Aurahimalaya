@@ -11,7 +11,8 @@ import {
   Building2,
   Scale,
   Users,
-  Truck
+  Truck,
+  UserCheck
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,6 +41,7 @@ const mainItems = [
   { title: 'Budgets', url: '/budgets', icon: Target },
   { title: 'Companies', url: '/companies', icon: Building2 },
   { title: 'Suppliers', url: '/suppliers', icon: Truck },
+  { title: 'Employees', url: '/employees', icon: UserCheck },
 ];
 
 const analyticsItems = [
