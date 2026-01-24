@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-export type AppRole = 'owner' | 'admin' | 'accountant' | 'viewer';
+export type AppRole = 'owner' | 'admin' | 'accountant' | 'viewer' | 'employee';
 
 export interface UserRole {
   id: string;
@@ -22,10 +22,11 @@ export interface TeamMember {
 }
 
 const PERMISSIONS = {
-  owner: ['manage_users', 'manage_settings', 'manage_companies', 'edit_data', 'view_data', 'delete_data'],
-  admin: ['manage_settings', 'manage_companies', 'edit_data', 'view_data', 'delete_data'],
-  accountant: ['edit_data', 'view_data'],
-  viewer: ['view_data'],
+  owner: ['manage_users', 'manage_settings', 'manage_companies', 'edit_data', 'view_data', 'delete_data', 'view_own_data', 'apply_leave'],
+  admin: ['manage_settings', 'manage_companies', 'edit_data', 'view_data', 'delete_data', 'view_own_data', 'apply_leave'],
+  accountant: ['edit_data', 'view_data', 'view_own_data', 'apply_leave'],
+  viewer: ['view_data', 'view_own_data'],
+  employee: ['view_own_data', 'apply_leave'],
 } as const;
 
 export type Permission = typeof PERMISSIONS[AppRole][number];

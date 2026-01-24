@@ -121,6 +121,7 @@ export function InviteUserDialog({ trigger }: InviteUserDialogProps) {
                 <SelectItem value="admin">Admin - Full access except user management</SelectItem>
                 <SelectItem value="accountant">Accountant - Create and edit transactions</SelectItem>
                 <SelectItem value="viewer">Viewer - Read-only access</SelectItem>
+                <SelectItem value="employee">Employee - Self-service leave management</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -155,6 +156,7 @@ export function InviteUserDialog({ trigger }: InviteUserDialogProps) {
                           <SelectItem value="admin">Admin</SelectItem>
                           <SelectItem value="accountant">Accountant</SelectItem>
                           <SelectItem value="viewer">Viewer</SelectItem>
+                          <SelectItem value="employee">Employee</SelectItem>
                         </SelectContent>
                       </Select>
                     )}

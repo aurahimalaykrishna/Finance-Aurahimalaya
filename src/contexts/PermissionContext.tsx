@@ -12,14 +12,17 @@ interface PermissionContextType {
   canEditData: boolean;
   canDeleteData: boolean;
   canViewData: boolean;
+  canViewOwnData: boolean;
+  canApplyLeave: boolean;
   currentCompanyRole: AppRole | null;
 }
 
 const PERMISSIONS = {
-  owner: ['manage_users', 'manage_settings', 'manage_companies', 'edit_data', 'view_data', 'delete_data'],
-  admin: ['manage_settings', 'manage_companies', 'edit_data', 'view_data', 'delete_data'],
-  accountant: ['edit_data', 'view_data'],
-  viewer: ['view_data'],
+  owner: ['manage_users', 'manage_settings', 'manage_companies', 'edit_data', 'view_data', 'delete_data', 'view_own_data', 'apply_leave'],
+  admin: ['manage_settings', 'manage_companies', 'edit_data', 'view_data', 'delete_data', 'view_own_data', 'apply_leave'],
+  accountant: ['edit_data', 'view_data', 'view_own_data', 'apply_leave'],
+  viewer: ['view_data', 'view_own_data'],
+  employee: ['view_own_data', 'apply_leave'],
 } as const;
 
 const PermissionContext = createContext<PermissionContextType | undefined>(undefined);
@@ -74,6 +77,9 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     return PERMISSIONS[effectiveRole].includes(permission as never);
   };
 
+  const canViewOwnData = hasPermission('view_own_data');
+  const canApplyLeave = hasPermission('apply_leave');
+
   const value = useMemo(() => ({
     userRole,
     isLoading: isLoading || accessLoading,
@@ -83,6 +89,8 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     canEditData,
     canDeleteData,
     canViewData,
+    canViewOwnData,
+    canApplyLeave,
     currentCompanyRole,
   }), [
     userRole, 
@@ -94,6 +102,8 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     canEditData, 
     canDeleteData, 
     canViewData,
+    canViewOwnData,
+    canApplyLeave,
     currentCompanyRole,
   ]);
 

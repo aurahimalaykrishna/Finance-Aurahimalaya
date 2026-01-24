@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import type { AppRole } from '@/hooks/useUserRoles';
-import { Crown, Shield, Calculator, Eye } from 'lucide-react';
+import { Crown, Shield, Calculator, Eye, UserCircle } from 'lucide-react';
 
 interface RoleBadgeProps {
   role: AppRole;
@@ -12,6 +12,7 @@ const roleConfig: Record<AppRole, { label: string; icon: React.ComponentType<{ c
   admin: { label: 'Admin', icon: Shield, variant: 'secondary' },
   accountant: { label: 'Accountant', icon: Calculator, variant: 'outline' },
   viewer: { label: 'Viewer', icon: Eye, variant: 'outline' },
+  employee: { label: 'Employee', icon: UserCircle, variant: 'outline' },
 };
 
 export function RoleBadge({ role, size = 'default' }: RoleBadgeProps) {

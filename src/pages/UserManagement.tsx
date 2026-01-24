@@ -135,6 +135,7 @@ export default function UserManagement() {
                 <SelectItem value="admin">Admin</SelectItem>
                 <SelectItem value="accountant">Accountant</SelectItem>
                 <SelectItem value="viewer">Viewer</SelectItem>
+                <SelectItem value="employee">Employee</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -292,6 +293,22 @@ export default function UserManagement() {
                   <li>• View transactions and categories</li>
                   <li>• No editing capabilities</li>
                   <li>• Cannot access settings</li>
+                </ul>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <RoleBadge role="employee" />
+                </CardTitle>
+                <CardDescription>Self-service leave management</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="text-sm space-y-1 text-muted-foreground">
+                  <li>• View own employee profile</li>
+                  <li>• Apply for leave requests</li>
+                  <li>• View own leave balance</li>
+                  <li>• View own leave history</li>
                 </ul>
               </CardContent>
             </Card>
