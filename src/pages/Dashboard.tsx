@@ -79,7 +79,7 @@ export default function Dashboard() {
     .filter(c => c.type === 'expense')
     .map(cat => ({
       name: cat.name,
-      value: filteredTransactions.filter(t => t.category_id === cat.id).reduce((sum, t) => sum + Number(t.amount), 0),
+      value: filteredTransactions.filter(t => t.type === 'expense' && t.category_id === cat.id).reduce((sum, t) => sum + Number(t.amount), 0),
       color: cat.color,
     }))
     .filter(c => c.value > 0);
