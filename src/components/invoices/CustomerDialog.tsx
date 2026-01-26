@@ -22,6 +22,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useCustomers, Customer } from '@/hooks/useCustomers';
+import { useCompanyContext } from '@/contexts/CompanyContext';
 
 const customerSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -43,6 +44,7 @@ interface CustomerDialogProps {
 
 export function CustomerDialog({ open, onOpenChange, customer, onSuccess }: CustomerDialogProps) {
   const { createCustomer, updateCustomer } = useCustomers();
+  const { selectedCompany } = useCompanyContext();
   const isEditing = !!customer;
 
   const form = useForm<CustomerFormData>({
@@ -113,7 +115,14 @@ export function CustomerDialog({ open, onOpenChange, customer, onSuccess }: Cust
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit Customer' : 'Add New Customer'}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? 'Edit Customer' : 'Add New Customer'}
+            {selectedCompany && (
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                — {selectedCompany.name}
+              </span>
+            )}
+          </DialogTitle>
         </DialogHeader>
 
         <Form {...form}>

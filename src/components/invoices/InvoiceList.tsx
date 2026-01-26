@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
+import { useCompanyContext } from '@/contexts/CompanyContext';
 import {
   Table,
   TableBody,
@@ -59,6 +60,7 @@ interface InvoiceListProps {
 
 export function InvoiceList({ onCreateNew }: InvoiceListProps) {
   const { invoices, isLoading, stats, updateInvoiceStatus, deleteInvoice } = useInvoices();
+  const { selectedCompany, isAllCompanies, companies } = useCompanyContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all'>('all');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
@@ -208,6 +210,7 @@ export function InvoiceList({ onCreateNew }: InvoiceListProps) {
               <TableRow>
                 <TableHead>Invoice #</TableHead>
                 <TableHead>Customer</TableHead>
+                <TableHead>Company</TableHead>
                 <TableHead>Issue Date</TableHead>
                 <TableHead>Due Date</TableHead>
                 <TableHead>Status</TableHead>
@@ -216,10 +219,15 @@ export function InvoiceList({ onCreateNew }: InvoiceListProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredInvoices.map((invoice) => (
+              {filteredInvoices.map((invoice) => {
+                const companyName = isAllCompanies
+                  ? companies.find(c => c.id === invoice.company_id)?.name || '-'
+                  : selectedCompany?.name || '-';
+                return (
                 <TableRow key={invoice.id}>
                   <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
                   <TableCell>{invoice.customer?.name || '-'}</TableCell>
+                  <TableCell className="text-muted-foreground">{companyName}</TableCell>
                   <TableCell>{format(new Date(invoice.issue_date), 'MMM dd, yyyy')}</TableCell>
                   <TableCell>{format(new Date(invoice.due_date), 'MMM dd, yyyy')}</TableCell>
                   <TableCell>
@@ -291,7 +299,8 @@ export function InvoiceList({ onCreateNew }: InvoiceListProps) {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))}
+              );
+              })}
             </TableBody>
           </Table>
         </div>
