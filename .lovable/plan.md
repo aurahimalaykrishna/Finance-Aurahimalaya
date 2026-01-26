@@ -1,149 +1,52 @@
 
+# Plan: Allow All Team Members to View All Employees
 
-## Plan: Add VAT Amount Return Field for Companies
+## Problem
+Currently, staff members who are added as employees (via the `employees` table with their `user_id`) cannot see other employees in the company. They can only view their own record because:
+1. The `has_company_access` function only checks company ownership or explicit `company_access` entries
+2. Employees are linked via the `employees` table, not the `company_access` table
 
-### Overview
-Add a "VAT Amount Return" field to track VAT collected from local business sales (invoices). This field will show the total VAT amount that needs to be returned/reported based on all sales invoices issued for each company.
+## Solution
+Update the `has_company_access` database function to also check if a user is an active employee of the company. This will grant company access to anyone who is:
+- The owner of the company, OR
+- Explicitly granted access in `company_access` table, OR  
+- An active employee in the `employees` table
 
----
+## Technical Changes
 
-### Understanding the Requirement
+### Database Migration
+Update the `has_company_access` function to include employees:
 
-**VAT Amount Return** = Total VAT (tax_amount) collected from all invoices issued to local business customers
-
-This is a computed value that aggregates the `tax_amount` from all invoices for each company, which represents the VAT that needs to be reported/returned to the tax authorities.
-
----
-
-### Implementation Approach
-
-Since VAT Return is a **calculated value** based on invoice data (not a static field), I recommend:
-
-1. **Calculate VAT Return dynamically** from invoice data rather than storing it as a static field
-2. **Display it alongside other financial metrics** (Cash in Hand, Cash in Bank, Investment)
-3. **Add it to the Company Dashboard/Profile** for easy viewing
-
----
-
-### Changes Required
-
-#### 1. Create VAT Return Hook - `src/hooks/useVATReturn.ts`
-
-Create a new hook that calculates VAT return for a company:
-
-```typescript
-export function useVATReturn(companyId: string | null) {
-  // Query invoices and sum tax_amount
-  // Filter by company_id
-  // Can optionally filter by date range/fiscal year
-  // Return { vatCollected, invoiceCount, isLoading }
-}
+```sql
+CREATE OR REPLACE FUNCTION public.has_company_access(_user_id uuid, _company_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    -- User owns the company
+    SELECT 1 FROM public.companies 
+    WHERE id = _company_id AND user_id = _user_id
+    UNION
+    -- User has been granted access
+    SELECT 1 FROM public.company_access 
+    WHERE company_id = _company_id AND user_id = _user_id
+    UNION
+    -- User is an active employee of the company
+    SELECT 1 FROM public.employees 
+    WHERE company_id = _company_id 
+    AND user_id = _user_id 
+    AND is_active = true
+  )
+$$;
 ```
 
----
+## Impact
+- **All active employees** will automatically be able to view all other employees in their company
+- This also applies to other tables that use `has_company_access` (transactions, categories, budgets, etc.)
+- Terminated employees (`is_active = false`) will lose company access automatically
 
-#### 2. Update Dashboard - `src/pages/Dashboard.tsx`
-
-Add a new card in the Financial Position section showing:
-- **VAT Amount Return** - Total VAT collected from invoices
-- Icon and color scheme consistent with other financial cards
-
-Visual representation:
-```text
-+---------------------------+
-| VAT Amount Return         |
-| [Receipt Icon]            |
-|                           |
-| NPR 125,450.00            |
-| From 45 invoices          |
-+---------------------------+
-```
-
----
-
-#### 3. Update Company Profile - `src/pages/CompanyProfile.tsx`
-
-Add VAT Return information to the CompanyOverview component to show:
-- Total VAT collected
-- Breakdown by status (paid vs pending invoices)
-
----
-
-#### 4. Update Company Cards - `src/pages/Companies.tsx`
-
-Add VAT return summary to each company card in the Companies list view.
-
----
-
-#### 5. Optional: Add Date Range Filter for VAT Calculation
-
-Allow filtering VAT return by:
-- Current fiscal year
-- Custom date range
-- All time
-
-This helps with tax reporting for specific periods.
-
----
-
-### Files to Create/Modify
-
-| Action | File Path | Description |
-|--------|-----------|-------------|
-| Create | `src/hooks/useVATReturn.ts` | Hook to calculate VAT from invoices |
-| Modify | `src/pages/Dashboard.tsx` | Add VAT Return card to financial position |
-| Modify | `src/components/company/profile/CompanyOverview.tsx` | Add VAT info to company profile |
-| Modify | `src/pages/Companies.tsx` | Add VAT summary to company cards |
-
----
-
-### Technical Details
-
-#### VAT Calculation Logic
-
-```typescript
-// In useVATReturn.ts
-const { data: invoices } = await supabase
-  .from('invoices')
-  .select('tax_amount, status')
-  .eq('company_id', companyId);
-
-const totalVAT = invoices.reduce((sum, inv) => sum + Number(inv.tax_amount), 0);
-const paidVAT = invoices
-  .filter(inv => inv.status === 'paid')
-  .reduce((sum, inv) => sum + Number(inv.tax_amount), 0);
-const pendingVAT = totalVAT - paidVAT;
-```
-
-#### Dashboard Card Component
-
-```tsx
-<Card className="border-border/50 bg-amber-500/5">
-  <CardHeader className="flex flex-row items-center justify-between pb-2">
-    <CardTitle className="text-sm font-medium text-muted-foreground">
-      VAT Amount Return
-    </CardTitle>
-    <Receipt className="h-4 w-4 text-amber-500" />
-  </CardHeader>
-  <CardContent>
-    <div className="text-2xl font-bold text-amber-600">
-      {currencySymbol}{vatReturn.toLocaleString()}
-    </div>
-    <p className="text-xs text-muted-foreground mt-1">
-      From {invoiceCount} sales invoices
-    </p>
-  </CardContent>
-</Card>
-```
-
----
-
-### Summary
-
-This implementation will:
-- Calculate VAT return dynamically from invoice tax amounts
-- Display VAT information on Dashboard, Company Profile, and Company Cards
-- Provide visibility into VAT obligations based on sales
-- Support both single company and all-companies views
-- No database schema changes required (uses existing invoice tax_amount data)
-
+## No Code Changes Required
+The existing frontend code already uses the `has_company_access` function through RLS policies, so no React/TypeScript changes are needed.
