@@ -2,17 +2,20 @@ import { useState, useEffect } from 'react';
 import { useProfile } from '@/hooks/useProfile';
 import { useCompanyContext } from '@/contexts/CompanyContext';
 import { useCompanies } from '@/hooks/useCompanies';
+import { useVATReturn } from '@/hooks/useVATReturn';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CURRENCIES } from '@/lib/currencies';
+import { CURRENCIES, getCurrencySymbol } from '@/lib/currencies';
+import { Receipt } from 'lucide-react';
 
 export default function Settings() {
   const { profile, isLoading, updateProfile } = useProfile();
-  const { selectedCompany, isAllCompanies } = useCompanyContext();
+  const { selectedCompany, isAllCompanies, selectedCompanyId } = useCompanyContext();
   const { updateCompany } = useCompanies();
+  const { vatData } = useVATReturn(selectedCompanyId);
   
   const [businessName, setBusinessName] = useState('');
   const [currency, setCurrency] = useState('NPR');
@@ -124,6 +127,54 @@ export default function Settings() {
           </CardContent>
         </Card>
       )}
+
+      {/* VAT Return Summary Card */}
+      <Card className="border-border/50 bg-amber-500/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-amber-500" />
+            <CardTitle>VAT Return</CardTitle>
+          </div>
+          <CardDescription>
+            {isAllCompanies 
+              ? "VAT collected from all companies' invoices"
+              : `VAT collected from ${selectedCompany?.name || 'company'}'s invoices`
+            }
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-xs">Total VAT Collected</Label>
+              <p className="text-2xl font-bold text-amber-600">
+                {getCurrencySymbol(selectedCompany?.currency || profile?.currency || 'NPR')}
+                {vatData.totalVAT.toLocaleString()}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-xs">From Paid Invoices</Label>
+              <p className="text-lg font-semibold text-emerald-600">
+                {getCurrencySymbol(selectedCompany?.currency || profile?.currency || 'NPR')}
+                {vatData.paidVAT.toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground">{vatData.paidInvoiceCount} invoices</p>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-xs">From Pending Invoices</Label>
+              <p className="text-lg font-semibold text-orange-600">
+                {getCurrencySymbol(selectedCompany?.currency || profile?.currency || 'NPR')}
+                {vatData.pendingVAT.toLocaleString()}
+              </p>
+              <p className="text-xs text-muted-foreground">{vatData.pendingInvoiceCount} invoices</p>
+            </div>
+          </div>
+          <div className="pt-2 border-t">
+            <p className="text-xs text-muted-foreground">
+              Total from {vatData.invoiceCount} sales invoices. VAT is calculated from the tax_amount field on each invoice.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
