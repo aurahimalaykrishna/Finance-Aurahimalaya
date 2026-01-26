@@ -1,12 +1,29 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Pencil, Star, Building2, MapPin, Eye } from 'lucide-react';
+import { Plus, Trash2, Pencil, Star, Building2, MapPin, Eye, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCompanies, Company } from '@/hooks/useCompanies';
 import { CompanyDialog } from '@/components/company/CompanyDialog';
+import { useVATReturn } from '@/hooks/useVATReturn';
+import { getCurrencySymbol } from '@/lib/currencies';
+
+// Component to display VAT for each company card
+function CompanyVATBadge({ companyId, currency }: { companyId: string; currency: string }) {
+  const { vatData } = useVATReturn(companyId);
+  const currencySymbol = getCurrencySymbol(currency);
+  
+  if (vatData.totalVAT === 0) return null;
+  
+  return (
+    <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-500/10 px-2 py-1 rounded">
+      <Receipt className="h-3 w-3" />
+      <span>VAT: {currencySymbol}{vatData.totalVAT.toLocaleString()}</span>
+    </div>
+  );
+}
 
 export default function Companies() {
   const navigate = useNavigate();
@@ -98,7 +115,9 @@ export default function Companies() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pt-2 border-t">
+                <CompanyVATBadge companyId={company.id} currency={company.currency || 'NPR'} />
+
+                <div className="flex items-center gap-2 pt-2 border-t">
                 <Button
                   variant="ghost"
                   size="sm"
