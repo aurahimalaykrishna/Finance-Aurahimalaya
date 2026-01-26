@@ -22,6 +22,7 @@ import Reconciliation from "./pages/Reconciliation";
 import UserManagement from "./pages/UserManagement";
 import Suppliers from "./pages/Suppliers";
 import Employees from "./pages/Employees";
+import Invoices from "./pages/Invoices";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ function AppRoutes() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/transactions" element={<Transactions />} />
+            <Route path="/invoices" element={<Invoices />} />
             <Route path="/categories" element={<Categories />} />
             <Route path="/budgets" element={<Budgets />} />
             <Route path="/companies" element={<Companies />} />
