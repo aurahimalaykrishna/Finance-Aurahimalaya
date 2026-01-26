@@ -1,4 +1,5 @@
-import { Calendar, DollarSign, TrendingUp, TrendingDown, Wallet, PiggyBank, FolderOpen, Building2, Banknote, Landmark, LineChart } from 'lucide-react';
+import { Calendar, DollarSign, TrendingUp, TrendingDown, Wallet, PiggyBank, FolderOpen, Building2, Banknote, Landmark, LineChart, Receipt } from 'lucide-react';
+import { useVATReturn } from '@/hooks/useVATReturn';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 
@@ -37,6 +38,7 @@ interface CompanyOverviewProps {
 export function CompanyOverview({ company, stats }: CompanyOverviewProps) {
   const currency = company.currency || 'USD';
   const fiscalMonth = MONTHS[(company.fiscal_year_start || 1) - 1];
+  const { vatData } = useVATReturn(company.id);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -160,6 +162,22 @@ export function CompanyOverview({ company, stats }: CompanyOverviewProps) {
             {formatCurrency(company.investment || 0)}
           </div>
           <p className="text-xs text-muted-foreground">Investment portfolio</p>
+        </CardContent>
+      </Card>
+
+      {/* VAT Amount Return */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">VAT Amount Return</CardTitle>
+          <Receipt className="h-4 w-4 text-amber-500" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-amber-600">
+            {formatCurrency(vatData.totalVAT)}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            From {vatData.invoiceCount} invoices ({vatData.paidInvoiceCount} paid)
+          </p>
         </CardContent>
       </Card>
 

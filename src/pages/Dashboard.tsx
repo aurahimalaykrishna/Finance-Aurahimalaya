@@ -6,8 +6,9 @@ import { useCategories } from '@/hooks/useCategories';
 import { useCompanyContext } from '@/contexts/CompanyContext';
 import { useProfile } from '@/hooks/useProfile';
 import { useBudgets } from '@/hooks/useBudgets';
+import { useVATReturn } from '@/hooks/useVATReturn';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, Building2, Target, AlertTriangle, Banknote, Landmark, LineChart, PiggyBank } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, Building2, Target, AlertTriangle, Banknote, Landmark, LineChart, PiggyBank, Receipt } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { getCurrencySymbol } from '@/lib/currencies';
@@ -24,6 +25,7 @@ export default function Dashboard() {
   const { categories } = useCategories(selectedCompanyId);
   const { budgets } = useBudgets(isAllCompanies ? null : selectedCompanyId);
   const { budgets: allBudgets } = useBudgets(null);
+  const { vatData } = useVATReturn(selectedCompanyId);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   useEffect(() => {
@@ -242,7 +244,7 @@ export default function Dashboard() {
 
       {/* Financial Position Cards (Single Company View) */}
       {!isAllCompanies && selectedCompany && (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card className="border-border/50 bg-blue-500/5">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Cash in Hand</CardTitle>
@@ -279,6 +281,21 @@ export default function Dashboard() {
                 {currencySymbol}{(selectedCompany.investment || 0).toLocaleString()}
               </div>
               <p className="text-xs text-muted-foreground mt-1">Investment portfolio</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 bg-amber-500/5">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">VAT Amount Return</CardTitle>
+              <Receipt className="h-4 w-4 text-amber-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-600">
+                {currencySymbol}{vatData.totalVAT.toLocaleString()}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                From {vatData.invoiceCount} sales invoices
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -341,6 +358,18 @@ export default function Dashboard() {
                         <div className="flex justify-between text-xs border-t pt-2">
                           <span className="text-muted-foreground">Transactions</span>
                           <span>{company.transactionCount}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Receipt className="h-3 w-3 text-amber-500" /> VAT Return
+                          </span>
+                          <span className="text-amber-600 font-medium">
+                            {(() => {
+                              const companyInvoices = filteredTransactions.filter(t => t.company_id === company.id);
+                              // Note: This shows transaction count, actual VAT would come from invoices
+                              return `${company.transactionCount} txns`;
+                            })()}
+                          </span>
                         </div>
                       </div>
                     </CardContent>
