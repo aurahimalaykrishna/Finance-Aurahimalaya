@@ -1,121 +1,154 @@
 
 
-## Plan: Show Company Name in Customer and Invoice Views
+## Plan: Fetch All Company Customers in Customer List and Invoice
 
 ### Overview
-Add the company name display to both the Customer and Invoice components so users can clearly see which company each record belongs to. This is especially useful when viewing or managing records.
+Update the customer fetching logic to support viewing customers from all companies (like Aurahimalaya Pvt Ltd, Nepal Visuals Pvt Ltd, etc.) when the "All Companies" view is selected, and show the company name for each customer.
 
 ---
 
-### 1. Changes to Invoice List
+### Current Behavior
+- `useCustomers` hook only fetches customers for the **selected company**
+- When "All Companies" is selected (`isAllCompanies = true`), `selectedCompanyId` becomes `null` and returns an empty array
+- Users cannot see customers across all their companies
 
-**File:** `src/components/invoices/InvoiceList.tsx`
-
-Add a "Company" column to the invoice table that displays the company name. Since invoices are filtered by selected company, we can display the selected company name from context.
-
-**Modifications:**
-- Add a new `<TableHead>Company</TableHead>` column
-- Add a new `<TableCell>` that shows the company name
-- Import and use `useCompanyContext` to get the selected company name
-
----
-
-### 2. Changes to Invoice Preview
-
-**File:** `src/components/invoices/InvoicePreview.tsx`
-
-The InvoicePreview already shows the company name at the top. This is already implemented - no changes needed here.
+### Desired Behavior
+- When a specific company is selected: Show only that company's customers
+- When "All Companies" is selected: Show customers from **all accessible companies**
+- Display the company name alongside each customer
 
 ---
 
-### 3. Changes to Customer Select
+### Changes Required
 
-**File:** `src/components/invoices/CustomerSelect.tsx`
+#### 1. Update `src/hooks/useCustomers.ts`
 
-Add a small subtitle showing which company the customers belong to.
+Modify the query to handle the "All Companies" case:
 
-**Modifications:**
-- Import `useCompanyContext`
-- Add a header/subtitle in the popover showing "Customers for [Company Name]"
+```typescript
+// Current logic (line 41-52):
+if (!selectedCompanyId) return [];
+// Only fetches for selected company
+
+// New logic:
+// If isAllCompanies is true, fetch ALL customers
+// Otherwise, filter by selectedCompanyId
+```
+
+**Key changes:**
+- Accept `isAllCompanies` from the context
+- When `isAllCompanies` is true, fetch all customers without company filter
+- Update query key to include `isAllCompanies` for proper caching
 
 ---
 
-### 4. Changes to Customer Dialog
+#### 2. Update `src/components/invoices/CustomerSelect.tsx`
 
-**File:** `src/components/invoices/CustomerDialog.tsx`
+- Add company name display next to each customer
+- Group customers by company (optional, for better organization)
+- Update header to show "All Customers" when viewing all companies
 
-Show the company name in the dialog header so users know which company the customer will be created under.
+**Visual change:**
+```text
+Current:
++---------------------------+
+| Customers for ABC Company |
++---------------------------+
+| Customer 1                |
+| Customer 2                |
 
-**Modifications:**
-- Import `useCompanyContext`
-- Update the `DialogTitle` to include the company name, e.g., "Add New Customer - [Company Name]"
+New (All Companies mode):
++---------------------------+
+| All Customers             |
++---------------------------+
+| Customer 1 - ABC Company  |
+| Customer 2 - XYZ Company  |
+```
 
 ---
 
-### 5. Optional: Create a Dedicated Customers Page
+#### 3. Update `src/pages/Customers.tsx`
 
-Currently, there's no dedicated page to list/manage customers. Creating one would provide a cleaner way to view all customers with their company association.
-
-**New Files:**
-- `src/pages/Customers.tsx` - Main customers page with table listing all customers
-- Update `src/components/layout/AppSidebar.tsx` - Add "Customers" navigation link
-- Update `src/App.tsx` - Add route for `/customers`
+The page already has logic for `isAllCompanies` and `getCompanyName()`, but it relies on `useCustomers` which doesn't fetch all companies' customers. Once the hook is updated, this page will automatically work correctly.
 
 ---
 
 ### Implementation Details
 
-#### 5.1 Invoice List Table Update
+#### Updated useCustomers Hook Logic
 
-```text
-Current columns:
-[Invoice #] [Customer] [Issue Date] [Due Date] [Status] [Amount] [Actions]
+```typescript
+export function useCustomers() {
+  const { user } = useAuth();
+  const { selectedCompanyId, isAllCompanies } = useCompanyContext();
+  const queryClient = useQueryClient();
 
-Updated columns:
-[Invoice #] [Customer] [Company] [Issue Date] [Due Date] [Status] [Amount] [Actions]
-```
+  const customersQuery = useQuery({
+    queryKey: ['customers', selectedCompanyId, isAllCompanies],
+    queryFn: async () => {
+      // If "All Companies" is selected, fetch all customers
+      if (isAllCompanies) {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('*')
+          .order('name');
+        
+        if (error) throw error;
+        return data as Customer[];
+      }
+      
+      // Otherwise, filter by selected company
+      if (!selectedCompanyId) return [];
+      
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('company_id', selectedCompanyId)
+        .order('name');
 
-The Company column will display the selected company name from the CompanyContext.
+      if (error) throw error;
+      return data as Customer[];
+    },
+    enabled: !!user && (!!selectedCompanyId || isAllCompanies),
+  });
 
-#### 5.2 Customer Select Header
-
-```text
-+---------------------------+
-| Customers for ABC Company |
-+---------------------------+
-| Search customers...       |
-+---------------------------+
-| Customer 1                |
-| Customer 2                |
-| ...                       |
-+---------------------------+
-```
-
-#### 5.3 Customer Dialog Title
-
-```text
-Current:  "Add New Customer"
-Updated:  "Add New Customer - ABC Company"
+  // ... rest of the hook
+}
 ```
 
 ---
 
-### Files Summary
+#### CustomerSelect with Company Names
+
+```typescript
+// In CustomerSelect.tsx - show company name for each customer
+{customers.map((customer) => (
+  <CommandItem key={customer.id} ...>
+    <div className="flex flex-col">
+      <span>{customer.name}</span>
+      <span className="text-xs text-muted-foreground">
+        {customer.email && `${customer.email} • `}
+        {getCompanyName(customer.company_id)}
+      </span>
+    </div>
+  </CommandItem>
+))}
+```
+
+---
+
+### Files to Modify
 
 | Action | File Path |
 |--------|-----------|
-| Modify | `src/components/invoices/InvoiceList.tsx` |
+| Modify | `src/hooks/useCustomers.ts` |
 | Modify | `src/components/invoices/CustomerSelect.tsx` |
-| Modify | `src/components/invoices/CustomerDialog.tsx` |
-| Create | `src/pages/Customers.tsx` (optional - dedicated customers page) |
-| Modify | `src/components/layout/AppSidebar.tsx` (if adding Customers page) |
-| Modify | `src/App.tsx` (if adding Customers page) |
 
 ---
 
 ### Technical Notes
 
-- The company information comes from `useCompanyContext()` which provides `selectedCompany` with full company details including `name`, `address`, `logo_url`, etc.
-- Since invoices and customers are already filtered by the selected company, the displayed company name will always match the current selection
-- This provides visual confirmation to users that they're working within the correct company context
+- RLS policies already allow users to see customers from all companies they have access to via `has_company_access(auth.uid(), company_id)`
+- No database changes required
+- The `companies` array from `useCompanyContext` can be used to look up company names
 
