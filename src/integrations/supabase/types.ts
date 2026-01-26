@@ -1385,16 +1385,20 @@ export type Database = {
         Returns: {
           access_role: Database["public"]["Enums"]["app_role"]
           address: string
+          cash_in_bank: number
+          cash_in_hand: number
           created_at: string
           currency: string
           favicon_url: string
           fiscal_year_start: number
           id: string
+          investment: number
           is_default: boolean
           logo_url: string
           name: string
           updated_at: string
           user_id: string
+          vat_collected: number
         }[]
       }
       get_user_company_access: {
