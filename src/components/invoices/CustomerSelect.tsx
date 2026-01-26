@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, ChevronsUpDown, Plus } from 'lucide-react';
+import { Check, ChevronsUpDown, Plus, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,6 +17,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useCustomers, Customer } from '@/hooks/useCustomers';
+import { useCompanyContext } from '@/contexts/CompanyContext';
 
 interface CustomerSelectProps {
   value: string | null;
@@ -27,6 +28,7 @@ interface CustomerSelectProps {
 export function CustomerSelect({ value, onChange, onCreateNew }: CustomerSelectProps) {
   const [open, setOpen] = useState(false);
   const { customers, isLoading } = useCustomers();
+  const { selectedCompany } = useCompanyContext();
 
   const selectedCustomer = customers.find((c) => c.id === value);
 
@@ -45,6 +47,12 @@ export function CustomerSelect({ value, onChange, onCreateNew }: CustomerSelectP
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0">
         <Command>
+          {selectedCompany && (
+            <div className="flex items-center gap-2 px-3 py-2 border-b text-xs text-muted-foreground">
+              <Building2 className="h-3 w-3" />
+              <span>Customers for {selectedCompany.name}</span>
+            </div>
+          )}
           <CommandInput placeholder="Search customers..." />
           <CommandList>
             <CommandEmpty>No customer found.</CommandEmpty>

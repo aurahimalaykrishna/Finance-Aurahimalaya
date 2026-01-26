@@ -35,10 +35,13 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { CompanySwitcher } from '@/components/company/CompanySwitcher';
 
+import { Contact } from 'lucide-react';
+
 const mainItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'Transactions', url: '/transactions', icon: ArrowLeftRight },
   { title: 'Invoices', url: '/invoices', icon: Receipt },
+  { title: 'Customers', url: '/customers', icon: Contact },
   { title: 'Categories', url: '/categories', icon: FolderOpen },
   { title: 'Budgets', url: '/budgets', icon: Target },
   { title: 'Companies', url: '/companies', icon: Building2 },
