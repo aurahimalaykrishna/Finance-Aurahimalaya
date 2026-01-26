@@ -1,21 +1,21 @@
 
 
-## Plan: Fetch All Company Customers in Customer List and Invoice
+## Plan: Show All Companies on Customers CRUD
 
 ### Overview
-Update the customer fetching logic to support viewing customers from all companies (like Aurahimalaya Pvt Ltd, Nepal Visuals Pvt Ltd, etc.) when the "All Companies" view is selected, and show the company name for each customer.
+Enable full CRUD operations for customers across all companies by adding a company selector in the CustomerDialog. This allows users to create/edit customers for any company, regardless of the current company selection.
 
 ---
 
 ### Current Behavior
-- `useCustomers` hook only fetches customers for the **selected company**
-- When "All Companies" is selected (`isAllCompanies = true`), `selectedCompanyId` becomes `null` and returns an empty array
-- Users cannot see customers across all their companies
+- When "All Companies" is selected: Users can see customers from all companies but cannot add new ones (the dialog only works with selectedCompany)
+- When a specific company is selected: Users can only create customers for that company
+- The CustomerDialog shows the company name but doesn't allow changing it
 
 ### Desired Behavior
-- When a specific company is selected: Show only that company's customers
-- When "All Companies" is selected: Show customers from **all accessible companies**
-- Display the company name alongside each customer
+- Users should be able to create customers for any company they have access to
+- When editing a customer, show which company they belong to (read-only)
+- When creating a new customer in "All Companies" mode, require company selection
 
 ---
 
@@ -23,132 +23,66 @@ Update the customer fetching logic to support viewing customers from all compani
 
 #### 1. Update `src/hooks/useCustomers.ts`
 
-Modify the query to handle the "All Companies" case:
+Modify the `createCustomer` mutation to accept an optional `company_id` parameter, allowing customers to be created for a specific company:
 
 ```typescript
-// Current logic (line 41-52):
-if (!selectedCompanyId) return [];
-// Only fetches for selected company
+// Current (simplified):
+createCustomer.mutateAsync({ name: "Customer" })
+// Uses selectedCompanyId internally
 
-// New logic:
-// If isAllCompanies is true, fetch ALL customers
-// Otherwise, filter by selectedCompanyId
+// New:
+createCustomer.mutateAsync({ name: "Customer", company_id: "specific-company-id" })
+// Uses provided company_id or falls back to selectedCompanyId
 ```
-
-**Key changes:**
-- Accept `isAllCompanies` from the context
-- When `isAllCompanies` is true, fetch all customers without company filter
-- Update query key to include `isAllCompanies` for proper caching
 
 ---
 
-#### 2. Update `src/components/invoices/CustomerSelect.tsx`
+#### 2. Update `src/components/invoices/CustomerDialog.tsx`
 
-- Add company name display next to each customer
-- Group customers by company (optional, for better organization)
-- Update header to show "All Customers" when viewing all companies
+Add a company selector dropdown that:
+- Shows all available companies when creating a new customer
+- Is required when in "All Companies" mode
+- Pre-selects the current company when one is selected
+- Shows company name as read-only when editing an existing customer
 
-**Visual change:**
+**Visual changes:**
 ```text
-Current:
+Add New Customer
 +---------------------------+
-| Customers for ABC Company |
+| Company *                 |
+| [Select company...    v]  |  <-- New field
 +---------------------------+
-| Customer 1                |
-| Customer 2                |
-
-New (All Companies mode):
+| Name *                    |
+| [Customer name        ]   |
 +---------------------------+
-| All Customers             |
+| Email        | Phone      |
+| [email@...]  | [+977...]  |
 +---------------------------+
-| Customer 1 - ABC Company  |
-| Customer 2 - XYZ Company  |
 ```
 
 ---
 
 #### 3. Update `src/pages/Customers.tsx`
 
-The page already has logic for `isAllCompanies` and `getCompanyName()`, but it relies on `useCustomers` which doesn't fetch all companies' customers. Once the hook is updated, this page will automatically work correctly.
-
----
-
-### Implementation Details
-
-#### Updated useCustomers Hook Logic
-
-```typescript
-export function useCustomers() {
-  const { user } = useAuth();
-  const { selectedCompanyId, isAllCompanies } = useCompanyContext();
-  const queryClient = useQueryClient();
-
-  const customersQuery = useQuery({
-    queryKey: ['customers', selectedCompanyId, isAllCompanies],
-    queryFn: async () => {
-      // If "All Companies" is selected, fetch all customers
-      if (isAllCompanies) {
-        const { data, error } = await supabase
-          .from('customers')
-          .select('*')
-          .order('name');
-        
-        if (error) throw error;
-        return data as Customer[];
-      }
-      
-      // Otherwise, filter by selected company
-      if (!selectedCompanyId) return [];
-      
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('company_id', selectedCompanyId)
-        .order('name');
-
-      if (error) throw error;
-      return data as Customer[];
-    },
-    enabled: !!user && (!!selectedCompanyId || isAllCompanies),
-  });
-
-  // ... rest of the hook
-}
-```
-
----
-
-#### CustomerSelect with Company Names
-
-```typescript
-// In CustomerSelect.tsx - show company name for each customer
-{customers.map((customer) => (
-  <CommandItem key={customer.id} ...>
-    <div className="flex flex-col">
-      <span>{customer.name}</span>
-      <span className="text-xs text-muted-foreground">
-        {customer.email && `${customer.email} • `}
-        {getCompanyName(customer.company_id)}
-      </span>
-    </div>
-  </CommandItem>
-))}
-```
+Ensure the "Add Customer" button works correctly in "All Companies" mode by:
+- Allowing the dialog to open even when no specific company is selected
+- The dialog will require company selection in this case
 
 ---
 
 ### Files to Modify
 
-| Action | File Path |
-|--------|-----------|
-| Modify | `src/hooks/useCustomers.ts` |
-| Modify | `src/components/invoices/CustomerSelect.tsx` |
+| Action | File Path | Changes |
+|--------|-----------|---------|
+| Modify | `src/hooks/useCustomers.ts` | Add optional `company_id` parameter to `CustomerInsert` and `createCustomer` mutation |
+| Modify | `src/components/invoices/CustomerDialog.tsx` | Add company selector dropdown using existing Select component |
 
 ---
 
 ### Technical Notes
 
-- RLS policies already allow users to see customers from all companies they have access to via `has_company_access(auth.uid(), company_id)`
-- No database changes required
-- The `companies` array from `useCompanyContext` can be used to look up company names
+- Uses existing `companies` array from `useCompanyContext` for the dropdown
+- Validation ensures a company is selected before form submission
+- When editing, the company field is read-only (customers cannot be moved between companies)
+- The query invalidation will use the correct company ID from the form data
 
