@@ -20,6 +20,7 @@ export default function Settings() {
   const [businessName, setBusinessName] = useState('');
   const [currency, setCurrency] = useState('NPR');
   const [companyCurrency, setCompanyCurrency] = useState('NPR');
+  const [vatCollected, setVatCollected] = useState('0');
 
   useEffect(() => {
     if (profile) {
@@ -31,6 +32,7 @@ export default function Settings() {
   useEffect(() => {
     if (selectedCompany) {
       setCompanyCurrency(selectedCompany.currency || 'NPR');
+      setVatCollected(String(selectedCompany.vat_collected || 0));
     }
   }, [selectedCompany]);
 
@@ -143,9 +145,41 @@ export default function Settings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
+          {!isAllCompanies && selectedCompany && (
+            <div className="space-y-2">
+              <Label>Total VAT Collected</Label>
+              <p className="text-xs text-muted-foreground">Enter the manual VAT amount collected for this company</p>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    {getCurrencySymbol(selectedCompany?.currency || 'NPR')}
+                  </span>
+                  <Input
+                    type="number"
+                    value={vatCollected}
+                    onChange={(e) => setVatCollected(e.target.value)}
+                    className="pl-10"
+                    placeholder="0"
+                  />
+                </div>
+                <Button 
+                  onClick={async () => {
+                    await updateCompany.mutateAsync({
+                      id: selectedCompany.id,
+                      data: { vat_collected: Number(vatCollected) || 0 }
+                    });
+                  }}
+                  disabled={updateCompany.isPending}
+                >
+                  {updateCompany.isPending ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          <div className="grid gap-4 sm:grid-cols-3 pt-4 border-t">
             <div className="space-y-1">
-              <Label className="text-muted-foreground text-xs">Total VAT Collected</Label>
+              <Label className="text-muted-foreground text-xs">VAT from Invoices</Label>
               <p className="text-2xl font-bold text-amber-600">
                 {getCurrencySymbol(selectedCompany?.currency || profile?.currency || 'NPR')}
                 {vatData.totalVAT.toLocaleString()}
@@ -170,7 +204,7 @@ export default function Settings() {
           </div>
           <div className="pt-2 border-t">
             <p className="text-xs text-muted-foreground">
-              Total from {vatData.invoiceCount} sales invoices. VAT is calculated from the tax_amount field on each invoice.
+              Invoice VAT is calculated automatically from {vatData.invoiceCount} sales invoices.
             </p>
           </div>
         </CardContent>

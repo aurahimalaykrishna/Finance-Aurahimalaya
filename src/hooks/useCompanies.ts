@@ -16,6 +16,7 @@ export interface Company {
   cash_in_hand: number | null;
   cash_in_bank: number | null;
   investment: number | null;
+  vat_collected: number | null;
   created_at: string | null;
   updated_at: string | null;
   access_role?: 'owner' | 'admin' | 'accountant' | 'viewer';
@@ -32,6 +33,7 @@ export interface CreateCompanyData {
   cash_in_hand?: number;
   cash_in_bank?: number;
   investment?: number;
+  vat_collected?: number;
 }
 
 export function useCompanies() {
