@@ -84,3 +84,5 @@ export function useCompanyContext() {
   }
   return context;
 }
+
+// Force cache invalidation
