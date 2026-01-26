@@ -25,6 +25,7 @@ export interface CustomerInsert {
   address?: string | null;
   tax_id?: string | null;
   is_active?: boolean;
+  company_id?: string;
 }
 
 export interface CustomerUpdate extends Partial<CustomerInsert> {
@@ -67,14 +68,15 @@ export function useCustomers() {
 
   const createCustomer = useMutation({
     mutationFn: async (customer: CustomerInsert) => {
-      if (!user || !selectedCompanyId) throw new Error('Not authenticated or no company selected');
+      const companyId = customer.company_id || selectedCompanyId;
+      if (!user || !companyId) throw new Error('Not authenticated or no company selected');
 
       const { data, error } = await supabase
         .from('customers')
         .insert({
           ...customer,
           user_id: user.id,
-          company_id: selectedCompanyId,
+          company_id: companyId,
         })
         .select()
         .single();
@@ -82,8 +84,9 @@ export function useCustomers() {
       if (error) throw error;
       return data as Customer;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers', selectedCompanyId] });
+    onSuccess: (_, variables) => {
+      const companyId = variables.company_id || selectedCompanyId;
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success('Customer created successfully');
     },
     onError: (error) => {
@@ -104,7 +107,7 @@ export function useCustomers() {
       return data as Customer;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers', selectedCompanyId] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success('Customer updated successfully');
     },
     onError: (error) => {
@@ -122,7 +125,7 @@ export function useCustomers() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers', selectedCompanyId] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success('Customer deleted successfully');
     },
     onError: (error) => {

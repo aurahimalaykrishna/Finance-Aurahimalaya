@@ -21,10 +21,18 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useCustomers, Customer } from '@/hooks/useCustomers';
 import { useCompanyContext } from '@/contexts/CompanyContext';
 
 const customerSchema = z.object({
+  company_id: z.string().min(1, 'Company is required'),
   name: z.string().min(1, 'Name is required'),
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
@@ -44,12 +52,13 @@ interface CustomerDialogProps {
 
 export function CustomerDialog({ open, onOpenChange, customer, onSuccess }: CustomerDialogProps) {
   const { createCustomer, updateCustomer } = useCustomers();
-  const { selectedCompany } = useCompanyContext();
+  const { selectedCompany, companies, isAllCompanies } = useCompanyContext();
   const isEditing = !!customer;
 
   const form = useForm<CustomerFormData>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
+      company_id: selectedCompany?.id || '',
       name: '',
       email: '',
       phone: '',
@@ -62,6 +71,7 @@ export function CustomerDialog({ open, onOpenChange, customer, onSuccess }: Cust
   useEffect(() => {
     if (customer) {
       form.reset({
+        company_id: customer.company_id,
         name: customer.name,
         email: customer.email || '',
         phone: customer.phone || '',
@@ -71,6 +81,7 @@ export function CustomerDialog({ open, onOpenChange, customer, onSuccess }: Cust
       });
     } else {
       form.reset({
+        company_id: selectedCompany?.id || '',
         name: '',
         email: '',
         phone: '',
@@ -79,7 +90,7 @@ export function CustomerDialog({ open, onOpenChange, customer, onSuccess }: Cust
         is_active: true,
       });
     }
-  }, [customer, form]);
+  }, [customer, form, selectedCompany]);
 
   const onSubmit = async (data: CustomerFormData) => {
     try {
@@ -102,6 +113,7 @@ export function CustomerDialog({ open, onOpenChange, customer, onSuccess }: Cust
           phone: data.phone || null,
           address: data.address || null,
           tax_id: data.tax_id || null,
+          company_id: data.company_id,
         });
         onSuccess?.(result);
       }
@@ -111,22 +123,53 @@ export function CustomerDialog({ open, onOpenChange, customer, onSuccess }: Cust
     }
   };
 
+  const getCompanyName = (companyId: string) => {
+    return companies.find(c => c.id === companyId)?.name || 'Unknown Company';
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
             {isEditing ? 'Edit Customer' : 'Add New Customer'}
-            {selectedCompany && (
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                — {selectedCompany.name}
-              </span>
-            )}
           </DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Company Selector - show dropdown when creating, read-only when editing */}
+            <FormField
+              control={form.control}
+              name="company_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Company *</FormLabel>
+                  {isEditing ? (
+                    <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 text-sm">
+                      {getCompanyName(field.value)}
+                    </div>
+                  ) : (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a company" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {companies.map((company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            {company.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="name"
