@@ -33,12 +33,24 @@ export interface CustomerUpdate extends Partial<CustomerInsert> {
 
 export function useCustomers() {
   const { user } = useAuth();
-  const { selectedCompanyId } = useCompanyContext();
+  const { selectedCompanyId, isAllCompanies } = useCompanyContext();
   const queryClient = useQueryClient();
 
   const customersQuery = useQuery({
-    queryKey: ['customers', selectedCompanyId],
+    queryKey: ['customers', selectedCompanyId, isAllCompanies],
     queryFn: async () => {
+      // If "All Companies" is selected, fetch all customers
+      if (isAllCompanies) {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('*')
+          .order('name');
+        
+        if (error) throw error;
+        return data as Customer[];
+      }
+      
+      // Otherwise, filter by selected company
       if (!selectedCompanyId) return [];
 
       const { data, error } = await supabase
@@ -50,7 +62,7 @@ export function useCustomers() {
       if (error) throw error;
       return data as Customer[];
     },
-    enabled: !!user && !!selectedCompanyId,
+    enabled: !!user && (!!selectedCompanyId || isAllCompanies),
   });
 
   const createCustomer = useMutation({
