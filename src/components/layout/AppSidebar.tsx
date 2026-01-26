@@ -12,7 +12,8 @@ import {
   Scale,
   Users,
   Truck,
-  UserCheck
+  UserCheck,
+  Receipt
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,6 +38,7 @@ import { CompanySwitcher } from '@/components/company/CompanySwitcher';
 const mainItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'Transactions', url: '/transactions', icon: ArrowLeftRight },
+  { title: 'Invoices', url: '/invoices', icon: Receipt },
   { title: 'Categories', url: '/categories', icon: FolderOpen },
   { title: 'Budgets', url: '/budgets', icon: Target },
   { title: 'Companies', url: '/companies', icon: Building2 },
