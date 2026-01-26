@@ -28,9 +28,14 @@ interface CustomerSelectProps {
 export function CustomerSelect({ value, onChange, onCreateNew }: CustomerSelectProps) {
   const [open, setOpen] = useState(false);
   const { customers, isLoading } = useCustomers();
-  const { selectedCompany } = useCompanyContext();
+  const { selectedCompany, companies, isAllCompanies } = useCompanyContext();
 
   const selectedCustomer = customers.find((c) => c.id === value);
+
+  const getCompanyName = (companyId: string) => {
+    const company = companies.find(c => c.id === companyId);
+    return company?.name || 'Unknown Company';
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -47,12 +52,10 @@ export function CustomerSelect({ value, onChange, onCreateNew }: CustomerSelectP
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0">
         <Command>
-          {selectedCompany && (
-            <div className="flex items-center gap-2 px-3 py-2 border-b text-xs text-muted-foreground">
-              <Building2 className="h-3 w-3" />
-              <span>Customers for {selectedCompany.name}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 px-3 py-2 border-b text-xs text-muted-foreground">
+            <Building2 className="h-3 w-3" />
+            <span>{isAllCompanies ? 'All Customers' : `Customers for ${selectedCompany?.name}`}</span>
+          </div>
           <CommandInput placeholder="Search customers..." />
           <CommandList>
             <CommandEmpty>No customer found.</CommandEmpty>
@@ -74,9 +77,10 @@ export function CustomerSelect({ value, onChange, onCreateNew }: CustomerSelectP
                   />
                   <div className="flex flex-col">
                     <span>{customer.name}</span>
-                    {customer.email && (
-                      <span className="text-xs text-muted-foreground">{customer.email}</span>
-                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {customer.email && `${customer.email} • `}
+                      {getCompanyName(customer.company_id)}
+                    </span>
                   </div>
                 </CommandItem>
               ))}
