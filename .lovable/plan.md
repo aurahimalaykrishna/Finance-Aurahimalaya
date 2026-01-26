@@ -1,282 +1,121 @@
 
 
-## Plan: Add Invoice Features for Each Company
+## Plan: Show Company Name in Customer and Invoice Views
 
 ### Overview
-Add a complete invoice management system that allows users to create, manage, and track invoices per company. The feature will include invoice creation with line items, customer management (clients/customers to invoice), status tracking, and PDF generation capability.
+Add the company name display to both the Customer and Invoice components so users can clearly see which company each record belongs to. This is especially useful when viewing or managing records.
 
 ---
 
-### 1. Database Schema
+### 1. Changes to Invoice List
 
-#### 1.1 New Tables
+**File:** `src/components/invoices/InvoiceList.tsx`
 
-**`customers` table** - Store clients/customers who receive invoices
-```sql
-CREATE TABLE public.customers (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  company_id UUID NOT NULL,
-  name TEXT NOT NULL,
-  email TEXT,
-  phone TEXT,
-  address TEXT,
-  tax_id TEXT,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-```
+Add a "Company" column to the invoice table that displays the company name. Since invoices are filtered by selected company, we can display the selected company name from context.
 
-**`invoices` table** - Main invoice records
-```sql
-CREATE TABLE public.invoices (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  company_id UUID NOT NULL,
-  customer_id UUID REFERENCES public.customers(id) ON DELETE SET NULL,
-  invoice_number TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'draft',  -- draft, sent, paid, overdue, cancelled
-  issue_date DATE NOT NULL DEFAULT CURRENT_DATE,
-  due_date DATE NOT NULL,
-  subtotal DECIMAL(15,2) NOT NULL DEFAULT 0,
-  tax_amount DECIMAL(15,2) DEFAULT 0,
-  discount_amount DECIMAL(15,2) DEFAULT 0,
-  total_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
-  currency TEXT DEFAULT 'NPR',
-  notes TEXT,
-  terms TEXT,
-  paid_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-**`invoice_items` table** - Line items for each invoice
-```sql
-CREATE TABLE public.invoice_items (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  invoice_id UUID REFERENCES public.invoices(id) ON DELETE CASCADE NOT NULL,
-  description TEXT NOT NULL,
-  quantity DECIMAL(10,2) NOT NULL DEFAULT 1,
-  unit_price DECIMAL(15,2) NOT NULL,
-  tax_rate DECIMAL(5,2) DEFAULT 0,
-  amount DECIMAL(15,2) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-#### 1.2 Database Functions
-
-**Auto-generate invoice numbers** - Function to create sequential invoice numbers per company
-```sql
-CREATE FUNCTION generate_invoice_number(p_company_id UUID)
-RETURNS TEXT AS $$
-DECLARE
-  next_num INTEGER;
-  prefix TEXT;
-BEGIN
-  SELECT COUNT(*) + 1 INTO next_num 
-  FROM invoices WHERE company_id = p_company_id;
-  prefix := 'INV-';
-  RETURN prefix || LPAD(next_num::TEXT, 5, '0');
-END;
-$$ LANGUAGE plpgsql;
-```
-
-#### 1.3 RLS Policies
-
-All tables will use `has_company_access(auth.uid(), company_id)` for RLS, following the existing pattern.
+**Modifications:**
+- Add a new `<TableHead>Company</TableHead>` column
+- Add a new `<TableCell>` that shows the company name
+- Import and use `useCompanyContext` to get the selected company name
 
 ---
 
-### 2. Frontend Components
+### 2. Changes to Invoice Preview
 
-#### 2.1 New Files to Create
+**File:** `src/components/invoices/InvoicePreview.tsx`
 
-| File | Purpose |
-|------|---------|
-| `src/hooks/useInvoices.ts` | React Query hooks for invoice CRUD operations |
-| `src/hooks/useCustomers.ts` | React Query hooks for customer management |
-| `src/components/invoices/InvoiceDialog.tsx` | Create/Edit invoice form with line items |
-| `src/components/invoices/InvoiceList.tsx` | Display invoices in a table |
-| `src/components/invoices/InvoicePreview.tsx` | Preview invoice before sending |
-| `src/components/invoices/InvoiceItemsEditor.tsx` | Add/edit line items in invoice |
-| `src/components/invoices/InvoiceStatusBadge.tsx` | Status badge component |
-| `src/components/invoices/CustomerDialog.tsx` | Add/edit customer |
-| `src/components/invoices/CustomerSelect.tsx` | Dropdown to select customer |
-| `src/pages/Invoices.tsx` | Main invoices page |
-
-#### 2.2 Invoice Dialog Features
-
-The invoice creation/editing dialog will include:
-- Customer selection (with option to create new)
-- Invoice date and due date pickers
-- Dynamic line items table with add/remove
-- Automatic subtotal, tax, and total calculations
-- Notes and payment terms fields
-- Currency selection
-
-#### 2.3 Invoice List Features
-
-- Filter by status (Draft, Sent, Paid, Overdue, Cancelled)
-- Search by invoice number or customer name
-- Sort by date, amount, or status
-- Quick actions: View, Edit, Mark as Paid, Send, Delete
-- Summary cards showing totals by status
+The InvoicePreview already shows the company name at the top. This is already implemented - no changes needed here.
 
 ---
 
-### 3. Navigation Updates
+### 3. Changes to Customer Select
 
-#### 3.1 Update `AppSidebar.tsx`
+**File:** `src/components/invoices/CustomerSelect.tsx`
 
-Add "Invoices" link to the main navigation items:
-```typescript
-const mainItems = [
-  // ... existing items
-  { title: 'Invoices', url: '/invoices', icon: FileText },
-];
-```
+Add a small subtitle showing which company the customers belong to.
 
-#### 3.2 Update `App.tsx`
-
-Add route for the Invoices page:
-```typescript
-<Route path="/invoices" element={<Invoices />} />
-```
+**Modifications:**
+- Import `useCompanyContext`
+- Add a header/subtitle in the popover showing "Customers for [Company Name]"
 
 ---
 
-### 4. Implementation Sequence
+### 4. Changes to Customer Dialog
+
+**File:** `src/components/invoices/CustomerDialog.tsx`
+
+Show the company name in the dialog header so users know which company the customer will be created under.
+
+**Modifications:**
+- Import `useCompanyContext`
+- Update the `DialogTitle` to include the company name, e.g., "Add New Customer - [Company Name]"
+
+---
+
+### 5. Optional: Create a Dedicated Customers Page
+
+Currently, there's no dedicated page to list/manage customers. Creating one would provide a cleaner way to view all customers with their company association.
+
+**New Files:**
+- `src/pages/Customers.tsx` - Main customers page with table listing all customers
+- Update `src/components/layout/AppSidebar.tsx` - Add "Customers" navigation link
+- Update `src/App.tsx` - Add route for `/customers`
+
+---
+
+### Implementation Details
+
+#### 5.1 Invoice List Table Update
 
 ```text
-+----------------------------+
-|  Phase 1: Database Setup   |
-+----------------------------+
-        |
-        v
-+----------------------------+
-| 1. Create customers table  |
-| 2. Create invoices table   |
-| 3. Create invoice_items    |
-| 4. Add RLS policies        |
-| 5. Create helper functions |
-+----------------------------+
-        |
-        v
-+----------------------------+
-|  Phase 2: Customer Hook    |
-+----------------------------+
-        |
-        v
-+----------------------------+
-| src/hooks/useCustomers.ts  |
-| - CRUD operations          |
-| - Company filtering        |
-+----------------------------+
-        |
-        v
-+----------------------------+
-|  Phase 3: Invoice Hook     |
-+----------------------------+
-        |
-        v
-+----------------------------+
-| src/hooks/useInvoices.ts   |
-| - CRUD operations          |
-| - Status updates           |
-| - Line item management     |
-| - Statistics calculations  |
-+----------------------------+
-        |
-        v
-+----------------------------+
-|  Phase 4: UI Components    |
-+----------------------------+
-        |
-        v
-+----------------------------+
-| CustomerDialog.tsx         |
-| CustomerSelect.tsx         |
-| InvoiceItemsEditor.tsx     |
-| InvoiceDialog.tsx          |
-| InvoiceStatusBadge.tsx     |
-| InvoiceList.tsx            |
-| InvoicePreview.tsx         |
-+----------------------------+
-        |
-        v
-+----------------------------+
-|  Phase 5: Page & Routes    |
-+----------------------------+
-        |
-        v
-+----------------------------+
-| Invoices.tsx page          |
-| AppSidebar.tsx update      |
-| App.tsx route update       |
-+----------------------------+
+Current columns:
+[Invoice #] [Customer] [Issue Date] [Due Date] [Status] [Amount] [Actions]
+
+Updated columns:
+[Invoice #] [Customer] [Company] [Issue Date] [Due Date] [Status] [Amount] [Actions]
 ```
 
----
+The Company column will display the selected company name from the CompanyContext.
 
-### 5. Technical Details
-
-#### 5.1 Invoice Status Flow
+#### 5.2 Customer Select Header
 
 ```text
-DRAFT --> SENT --> PAID
-  |         |
-  v         v
-CANCELLED  OVERDUE (automatic based on due_date)
++---------------------------+
+| Customers for ABC Company |
++---------------------------+
+| Search customers...       |
++---------------------------+
+| Customer 1                |
+| Customer 2                |
+| ...                       |
++---------------------------+
 ```
 
-#### 5.2 Line Item Calculations
+#### 5.3 Customer Dialog Title
 
-```typescript
-// Per line item
-const itemAmount = quantity * unitPrice;
-const itemTax = itemAmount * (taxRate / 100);
-
-// Invoice totals
-const subtotal = sum of all itemAmounts;
-const taxAmount = sum of all itemTaxes;
-const total = subtotal + taxAmount - discountAmount;
+```text
+Current:  "Add New Customer"
+Updated:  "Add New Customer - ABC Company"
 ```
-
-#### 5.3 Invoice Number Generation
-
-Invoice numbers will be auto-generated per company using the format:
-`INV-00001`, `INV-00002`, etc.
 
 ---
 
-### 6. Files Summary
+### Files Summary
 
 | Action | File Path |
 |--------|-----------|
-| Create | `supabase/migrations/xxx_add_invoices.sql` |
-| Create | `src/hooks/useCustomers.ts` |
-| Create | `src/hooks/useInvoices.ts` |
-| Create | `src/components/invoices/CustomerDialog.tsx` |
-| Create | `src/components/invoices/CustomerSelect.tsx` |
-| Create | `src/components/invoices/InvoiceDialog.tsx` |
-| Create | `src/components/invoices/InvoiceItemsEditor.tsx` |
-| Create | `src/components/invoices/InvoiceStatusBadge.tsx` |
-| Create | `src/components/invoices/InvoiceList.tsx` |
-| Create | `src/components/invoices/InvoicePreview.tsx` |
-| Create | `src/pages/Invoices.tsx` |
-| Modify | `src/components/layout/AppSidebar.tsx` |
-| Modify | `src/App.tsx` |
+| Modify | `src/components/invoices/InvoiceList.tsx` |
+| Modify | `src/components/invoices/CustomerSelect.tsx` |
+| Modify | `src/components/invoices/CustomerDialog.tsx` |
+| Create | `src/pages/Customers.tsx` (optional - dedicated customers page) |
+| Modify | `src/components/layout/AppSidebar.tsx` (if adding Customers page) |
+| Modify | `src/App.tsx` (if adding Customers page) |
 
 ---
 
-### 7. Future Enhancements (Not in Initial Scope)
+### Technical Notes
 
-- PDF export/download
-- Email invoice to customer
-- Recurring invoices
-- Payment tracking linked to transactions
-- Invoice templates/branding per company
+- The company information comes from `useCompanyContext()` which provides `selectedCompany` with full company details including `name`, `address`, `logo_url`, etc.
+- Since invoices and customers are already filtered by the selected company, the displayed company name will always match the current selection
+- This provides visual confirmation to users that they're working within the correct company context
 
