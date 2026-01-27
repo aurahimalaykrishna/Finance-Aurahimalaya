@@ -119,6 +119,9 @@ export function InviteUserDialog({ trigger }: InviteUserDialogProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="admin">Admin - Full access except user management</SelectItem>
+                <SelectItem value="hr_manager">HR Manager - Full HR access: employees, payroll, leaves</SelectItem>
+                <SelectItem value="manager">Manager - Approve leaves, view team data</SelectItem>
+                <SelectItem value="supervisor">Supervisor - Approve leaves for team</SelectItem>
                 <SelectItem value="accountant">Accountant - Create and edit transactions</SelectItem>
                 <SelectItem value="viewer">Viewer - Read-only access</SelectItem>
                 <SelectItem value="employee">Employee - Self-service leave management</SelectItem>
@@ -154,6 +157,9 @@ export function InviteUserDialog({ trigger }: InviteUserDialogProps) {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="hr_manager">HR Manager</SelectItem>
+                          <SelectItem value="manager">Manager</SelectItem>
+                          <SelectItem value="supervisor">Supervisor</SelectItem>
                           <SelectItem value="accountant">Accountant</SelectItem>
                           <SelectItem value="viewer">Viewer</SelectItem>
                           <SelectItem value="employee">Employee</SelectItem>

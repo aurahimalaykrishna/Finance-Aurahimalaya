@@ -14,12 +14,19 @@ interface PermissionContextType {
   canViewData: boolean;
   canViewOwnData: boolean;
   canApplyLeave: boolean;
+  canManageEmployees: boolean;
+  canManagePayroll: boolean;
+  canApproveLeave: boolean;
+  canViewTeamData: boolean;
   currentCompanyRole: AppRole | null;
 }
 
 const PERMISSIONS = {
-  owner: ['manage_users', 'manage_settings', 'manage_companies', 'edit_data', 'view_data', 'delete_data', 'view_own_data', 'apply_leave'],
-  admin: ['manage_settings', 'manage_companies', 'edit_data', 'view_data', 'delete_data', 'view_own_data', 'apply_leave'],
+  owner: ['manage_users', 'manage_settings', 'manage_companies', 'manage_employees', 'manage_payroll', 'approve_leave', 'edit_data', 'view_data', 'view_team_data', 'delete_data', 'view_own_data', 'apply_leave'],
+  admin: ['manage_settings', 'manage_companies', 'manage_employees', 'manage_payroll', 'approve_leave', 'edit_data', 'view_data', 'view_team_data', 'delete_data', 'view_own_data', 'apply_leave'],
+  hr_manager: ['manage_employees', 'manage_payroll', 'approve_leave', 'edit_data', 'view_data', 'view_team_data', 'view_own_data', 'apply_leave'],
+  manager: ['approve_leave', 'view_data', 'view_team_data', 'view_own_data', 'apply_leave'],
+  supervisor: ['approve_leave', 'view_team_data', 'view_own_data', 'apply_leave'],
   accountant: ['edit_data', 'view_data', 'view_own_data', 'apply_leave'],
   viewer: ['view_data', 'view_own_data'],
   employee: ['view_own_data', 'apply_leave'],
@@ -78,7 +85,11 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
   };
 
   const canViewOwnData = hasPermission('view_own_data');
-  const canApplyLeave = hasPermission('apply_leave');
+  const canApplyLeavePermission = hasPermission('apply_leave');
+  const canManageEmployees = hasPermission('manage_employees');
+  const canManagePayroll = hasPermission('manage_payroll');
+  const canApproveLeave = hasPermission('approve_leave');
+  const canViewTeamData = hasPermission('view_team_data');
 
   const value = useMemo(() => ({
     userRole,
@@ -90,7 +101,11 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     canDeleteData,
     canViewData,
     canViewOwnData,
-    canApplyLeave,
+    canApplyLeave: canApplyLeavePermission,
+    canManageEmployees,
+    canManagePayroll,
+    canApproveLeave,
+    canViewTeamData,
     currentCompanyRole,
   }), [
     userRole, 
@@ -103,7 +118,11 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     canDeleteData, 
     canViewData,
     canViewOwnData,
-    canApplyLeave,
+    canApplyLeavePermission,
+    canManageEmployees,
+    canManagePayroll,
+    canApproveLeave,
+    canViewTeamData,
     currentCompanyRole,
   ]);
 

@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import type { AppRole } from '@/hooks/useUserRoles';
-import { Crown, Shield, Calculator, Eye, UserCircle } from 'lucide-react';
+import { Crown, Shield, Calculator, Eye, UserCircle, Users, Briefcase, UserCheck } from 'lucide-react';
 
 interface RoleBadgeProps {
   role: AppRole;
@@ -10,6 +10,9 @@ interface RoleBadgeProps {
 const roleConfig: Record<AppRole, { label: string; icon: React.ComponentType<{ className?: string }>; variant: 'default' | 'secondary' | 'outline' }> = {
   owner: { label: 'Owner', icon: Crown, variant: 'default' },
   admin: { label: 'Admin', icon: Shield, variant: 'secondary' },
+  hr_manager: { label: 'HR Manager', icon: Users, variant: 'secondary' },
+  manager: { label: 'Manager', icon: Briefcase, variant: 'outline' },
+  supervisor: { label: 'Supervisor', icon: UserCheck, variant: 'outline' },
   accountant: { label: 'Accountant', icon: Calculator, variant: 'outline' },
   viewer: { label: 'Viewer', icon: Eye, variant: 'outline' },
   employee: { label: 'Employee', icon: UserCircle, variant: 'outline' },
