@@ -14,10 +14,14 @@ import {
   Truck,
   UserCheck,
   Receipt,
-  UserCircle
+  UserCircle,
+  CalendarDays,
+  ClipboardList
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCompanyContext } from '@/contexts/CompanyContext';
+import { useAllLeaveRequests } from '@/hooks/useAllLeaveRequests';
 import {
   Sidebar,
   SidebarContent,
@@ -34,6 +38,7 @@ import {
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { CompanySwitcher } from '@/components/company/CompanySwitcher';
 
 import { Contact } from 'lucide-react';
@@ -48,6 +53,8 @@ const mainItems = [
   { title: 'Companies', url: '/companies', icon: Building2 },
   { title: 'Suppliers', url: '/suppliers', icon: Truck },
   { title: 'Employees', url: '/employees', icon: UserCheck },
+  { title: 'Holidays', url: '/holidays', icon: CalendarDays },
+  { title: 'Leave Requests', url: '/leave', icon: ClipboardList, showBadge: true },
   { title: 'My Portal', url: '/portal', icon: UserCircle },
 ];
 
@@ -71,6 +78,8 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
+  const { selectedCompany } = useCompanyContext();
+  const { pendingCount } = useAllLeaveRequests(selectedCompany?.id);
 
   const handleSignOut = async () => {
     await signOut();
@@ -115,7 +124,16 @@ export function AppSidebar() {
                       activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                     >
                       <item.icon className="h-4 w-4 flex-shrink-0" />
-                      {!collapsed && <span>{item.title}</span>}
+                      {!collapsed && (
+                        <span className="flex items-center gap-2">
+                          {item.title}
+                          {item.showBadge && pendingCount > 0 && (
+                            <Badge variant="destructive" className="h-5 min-w-5 text-xs px-1.5">
+                              {pendingCount}
+                            </Badge>
+                          )}
+                        </span>
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
