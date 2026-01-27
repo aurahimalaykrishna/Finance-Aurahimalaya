@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -102,6 +103,43 @@ export function LeaveTypeDialog({
           color: '#6366f1',
         },
   });
+
+  // Reset form when leaveType changes (for editing different items)
+  useEffect(() => {
+    if (open && leaveType) {
+      reset({
+        code: leaveType.code,
+        name: leaveType.name,
+        annual_entitlement: leaveType.annual_entitlement,
+        max_accrual: leaveType.max_accrual,
+        max_carry_forward: leaveType.max_carry_forward,
+        accrual_type: leaveType.accrual_type,
+        accrual_rate: leaveType.accrual_rate,
+        accrual_per_days: leaveType.accrual_per_days,
+        gender_restriction: leaveType.gender_restriction,
+        is_paid: leaveType.is_paid,
+        requires_approval: leaveType.requires_approval,
+        is_active: leaveType.is_active,
+        color: leaveType.color,
+      });
+    } else if (open && !leaveType) {
+      reset({
+        code: '',
+        name: '',
+        annual_entitlement: 0,
+        max_accrual: null,
+        max_carry_forward: 0,
+        accrual_type: 'annual',
+        accrual_rate: null,
+        accrual_per_days: null,
+        gender_restriction: null,
+        is_paid: true,
+        requires_approval: true,
+        is_active: true,
+        color: '#6366f1',
+      });
+    }
+  }, [open, leaveType, reset]);
 
   const accrualType = watch('accrual_type');
   const isPaid = watch('is_paid');
