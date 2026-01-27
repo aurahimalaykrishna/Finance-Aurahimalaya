@@ -1,192 +1,270 @@
 
-
-# Plan: Add Task-Based Employment Type with Financial Handling
+# Plan: Employee Attendance Tracking with Check-in/Check-out
 
 ## Overview
-Add a new "Task-based" employment type for employees who are paid per task or project completion. This includes updating the database constraints, business logic, and UI to support task-based salary structure with per-task rate input.
+Implement a comprehensive attendance tracking system that allows employees to check-in and check-out daily, automatically calculates working hours, integrates with the leave management system, and feeds into payroll processing with accurate present/absent/leave days.
 
-## Employment Type to Salary Mapping (Updated)
+## System Architecture
 
-| Employment Type | Salary Input | Calculation |
-|-----------------|--------------|-------------|
-| Regular | Monthly salary | Direct amount |
-| Time-bound | Monthly salary | Direct amount |
-| Work-based | Daily rate | Daily rate x 26 days = Monthly |
-| Casual | Hourly rate | Hourly rate x 208 hours = Monthly |
-| Part-time | Hourly rate | Hourly rate x 208 hours = Monthly |
-| **Task-based** | **Per-task rate** | **Rate x estimated tasks/month** |
+```text
++-------------------+     +--------------------+     +------------------+
+|   Attendance UI   |---->|  Attendance Hook   |---->|  attendance_logs |
+| (Check-in/out)    |     |  useAttendance.ts  |     |  (Database)      |
++-------------------+     +--------------------+     +------------------+
+        |                          |                         |
+        v                          v                         v
++-------------------+     +--------------------+     +------------------+
+| Employee Profile  |     | Leave Integration  |     | Payroll Hook     |
+| (Attendance Tab)  |     | (Auto-detect)      |     | (Working days)   |
++-------------------+     +--------------------+     +------------------+
+```
+
+## Feature Summary
+
+| Feature | Description |
+|---------|-------------|
+| Daily Check-in | Record check-in time with optional notes |
+| Daily Check-out | Record check-out time with optional notes |
+| Working Hours | Auto-calculate hours from check-in/out times |
+| Overtime Detection | Flag when daily hours exceed 8 hours |
+| Monthly Summary | Present days, absent days, leave days, overtime |
+| Payroll Integration | Use actual attendance data for payroll |
+| Admin Management | Edit/add attendance records for employees |
+
+## Database Schema
+
+### New Table: `attendance_logs`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| employee_id | uuid | Foreign key to employees |
+| date | date | Attendance date (unique per employee) |
+| check_in | timestamptz | Check-in timestamp |
+| check_out | timestamptz | Check-out timestamp |
+| working_hours | decimal | Calculated hours (auto or manual) |
+| overtime_hours | decimal | Hours beyond 8 hrs |
+| status | text | present, absent, leave, half_day, holiday |
+| leave_request_id | uuid | Link to leave request if on leave |
+| notes | text | Optional notes |
+| created_by | uuid | Who created the record |
+| created_at | timestamptz | Created timestamp |
+| updated_at | timestamptz | Updated timestamp |
+
+### Constraints
+- Unique constraint on (employee_id, date)
+- Status check: `'present', 'absent', 'leave', 'half_day', 'holiday', 'weekend'`
+
+### RLS Policies
+- Employees can view and insert their own attendance
+- Company admins can view/edit all employee attendance
+- Uses existing `has_company_access` function
 
 ## Changes Summary
 
-### 1. Database Changes
-Update the `employees_employment_type_check` constraint to include 'task_based':
+### 1. Database Migration
+Create `attendance_logs` table with proper constraints and RLS policies:
 
 ```sql
-ALTER TABLE public.employees 
-  DROP CONSTRAINT employees_employment_type_check;
-
-ALTER TABLE public.employees 
-  ADD CONSTRAINT employees_employment_type_check 
-  CHECK (employment_type = ANY (ARRAY[
-    'regular', 'work_based', 'time_bound', 
-    'casual', 'part_time', 'task_based'
-  ]));
-
--- Add new salary type for task-based
-ALTER TABLE public.employees 
-  DROP CONSTRAINT employees_salary_type_check;
-
-ALTER TABLE public.employees 
-  ADD CONSTRAINT employees_salary_type_check 
-  CHECK (salary_type = ANY (ARRAY[
-    'monthly', 'daily', 'hourly', 'per_task'
-  ]));
-
--- Add column for estimated tasks per month
-ALTER TABLE public.employees 
-  ADD COLUMN estimated_tasks_per_month integer DEFAULT 0;
+CREATE TABLE public.attendance_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id UUID NOT NULL REFERENCES public.employees(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  check_in TIMESTAMPTZ,
+  check_out TIMESTAMPTZ,
+  working_hours DECIMAL(5,2) DEFAULT 0,
+  overtime_hours DECIMAL(5,2) DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'present',
+  leave_request_id UUID REFERENCES public.employee_leave_requests(id),
+  notes TEXT,
+  created_by UUID NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(employee_id, date),
+  CHECK (status IN ('present', 'absent', 'leave', 'half_day', 'holiday', 'weekend'))
+);
 ```
 
-### 2. Business Logic Updates
-Update `src/lib/nepal-hr-calculations.ts`:
+### 2. New Hook: `useAttendance.ts`
+Location: `src/hooks/useAttendance.ts`
 
-- Add 'task_based' to `EMPLOYMENT_TYPES` constant
-- Add 'per_task' to `SALARY_TYPES` constant
-- Update `EmploymentType` to include 'task_based'
-- Update `SalaryType` to include 'per_task'
-- Add `task_based: 'per_task'` to `EMPLOYMENT_TO_SALARY_MAP`
-- Add function `calculateMonthlyFromTask(taskRate, tasksPerMonth)`
+Functions to implement:
+- `checkIn(employeeId, notes?)` - Record check-in time
+- `checkOut(employeeId, notes?)` - Record check-out and calculate hours
+- `getTodayAttendance(employeeId)` - Get today's record
+- `getMonthlyAttendance(employeeId, month, year)` - Monthly records
+- `getMonthlyStats(employeeId, month, year)` - Summary statistics
+- `createAttendanceRecord(data)` - Admin: manually add records
+- `updateAttendanceRecord(id, data)` - Admin: edit records
+- `markAsAbsent(employeeId, date)` - Mark absent for a day
+- `syncLeaveAttendance(employeeId, startDate, endDate)` - Mark leave days
 
-### 3. Type Updates
-Update `src/hooks/useEmployees.ts`:
+### 3. New Component: `AttendancePanel.tsx`
+Location: `src/components/employees/AttendancePanel.tsx`
 
-- Add `estimated_tasks_per_month` to `Employee` and `CreateEmployeeData` interfaces
-- Update mutations to handle task-based salary calculations
+Features:
+- Check-in button (shows check-in time if already checked in)
+- Check-out button (disabled until checked in)
+- Today's summary card
+- Monthly calendar view with color-coded days
+- Monthly statistics summary
 
-### 4. Employee Form Updates
-Update `src/components/employees/EmployeeDialog.tsx`:
-
-Financial tab changes for task-based employees:
-- Show "Per-Task Rate (NPR)" input field
-- Show "Estimated Tasks/Month" input field
-- Display calculated monthly equivalent
-- Show calculation breakdown
-
+UI Layout:
 ```text
-Financial Tab Layout (Task-based):
-+----------------------------------+
-| Employment Type: [Task-based]    |
-+----------------------------------+
-| Salary Type: Per Task (auto)     |
-+----------------------------------+
-| Per-Task Rate (NPR) *            |
-| [___________2000_________]       |
-+----------------------------------+
-| Estimated Tasks/Month *          |
-| [___________10___________]       |
-+----------------------------------+
-| Monthly Equivalent               |
-| NPR 20,000 (2000 x 10 tasks)    |
-+----------------------------------+
-| Dearness Allowance (NPR)         |
-| [________________]               |
-+----------------------------------+
++----------------------------------------+
+| Today's Attendance          [Jan 27]   |
++----------------------------------------+
+| Status: Not Checked In                 |
+|                                        |
+| [Check In]        [Check Out]          |
+|                   (disabled)           |
++----------------------------------------+
+| Working Hours: --                      |
+| Notes: [optional input]                |
++----------------------------------------+
+
++----------------------------------------+
+| Monthly Summary - January 2026         |
++----------------------------------------+
+| Present: 18 days | Absent: 2 days      |
+| Leave: 3 days    | Holidays: 3 days    |
+| Total Hours: 144 | Overtime: 8 hrs     |
++----------------------------------------+
 ```
 
-### 5. Employee Profile Updates
-Update `src/components/employees/EmployeeProfile.tsx`:
+### 4. New Component: `AttendanceCalendar.tsx`
+Location: `src/components/employees/AttendanceCalendar.tsx`
 
-- Display "Per Task" salary type badge for task-based employees
-- Show per-task rate (e.g., "NPR 2,000/task")
-- Show estimated tasks and calculation breakdown
-- Display monthly equivalent with formula
+- Monthly calendar grid
+- Color coding: Green (present), Red (absent), Blue (leave), Gray (holiday/weekend)
+- Click to view/edit attendance for a day
+- Shows working hours in each cell
+
+### 5. New Component: `AttendanceManagement.tsx`
+Location: `src/components/employees/AttendanceManagement.tsx`
+
+Admin features:
+- View all employee attendance for a date range
+- Bulk mark attendance (absent/present/holiday)
+- Export attendance reports
+- Edit individual records
+
+### 6. Update: `EmployeeProfile.tsx`
+Add new "Attendance" tab with:
+- Today's check-in/out buttons (for self-service)
+- Monthly attendance calendar
+- Monthly statistics
+
+### 7. Update: `Employees.tsx` Page
+Add new tab for Attendance Management:
+- "Attendance" tab with company-wide attendance view
+- Date picker to select date
+- Table showing all employees with today's status
+- Quick actions for check-in/out on behalf of employees
+
+### 8. Update: `usePayroll.ts`
+Integrate attendance data:
+- Calculate actual `working_days` from attendance
+- Calculate actual `present_days` from attendance
+- Calculate `leave_days` from approved leave requests
+- Sum `overtime_hours` from attendance logs
+
+### 9. Leave Integration
+When a leave request is approved:
+- Auto-create attendance records for leave dates
+- Set status to 'leave'
+- Link to leave_request_id
 
 ---
 
-## Technical Details
+## Implementation Details
 
-### Database Migration SQL
-```sql
--- Update employment_type constraint to include task_based
-ALTER TABLE public.employees 
-  DROP CONSTRAINT employees_employment_type_check;
-
-ALTER TABLE public.employees 
-  ADD CONSTRAINT employees_employment_type_check 
-  CHECK (employment_type = ANY (ARRAY[
-    'regular'::text, 'work_based'::text, 'time_bound'::text, 
-    'casual'::text, 'part_time'::text, 'task_based'::text
-  ]));
-
--- Update salary_type constraint to include per_task
-ALTER TABLE public.employees 
-  DROP CONSTRAINT employees_salary_type_check;
-
-ALTER TABLE public.employees 
-  ADD CONSTRAINT employees_salary_type_check 
-  CHECK (salary_type = ANY (ARRAY[
-    'monthly'::text, 'daily'::text, 'hourly'::text, 'per_task'::text
-  ]));
-
--- Add estimated_tasks_per_month column
-ALTER TABLE public.employees 
-  ADD COLUMN estimated_tasks_per_month integer DEFAULT 0;
+### Attendance Status Types
+```text
+| Status   | Description                                |
+|----------|-------------------------------------------|
+| present  | Employee worked (check-in/out recorded)    |
+| absent   | Employee did not work (no leave/holiday)   |
+| leave    | On approved leave                          |
+| half_day | Worked partial day                         |
+| holiday  | Public holiday                             |
+| weekend  | Saturday/Sunday (if applicable)            |
 ```
 
-### Constants Update (nepal-hr-calculations.ts)
+### Working Hours Calculation
 ```text
-EMPLOYMENT_TYPES = [
-  { value: 'regular', label: 'Regular' },
-  { value: 'work_based', label: 'Work-based' },
-  { value: 'time_bound', label: 'Time-bound' },
-  { value: 'casual', label: 'Casual' },
-  { value: 'part_time', label: 'Part-time' },
-  { value: 'task_based', label: 'Task-based' },  // NEW
-]
-
-SALARY_TYPES = [
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'daily', label: 'Daily' },
-  { value: 'hourly', label: 'Hourly' },
-  { value: 'per_task', label: 'Per Task' },  // NEW
-]
-
-EMPLOYMENT_TO_SALARY_MAP = {
-  regular: 'monthly',
-  time_bound: 'monthly',
-  work_based: 'daily',
-  casual: 'hourly',
-  part_time: 'hourly',
-  task_based: 'per_task',  // NEW
-}
+calculateWorkingHours(checkIn, checkOut):
+  1. Parse timestamps to hours
+  2. Subtract lunch break (1 hour for > 6 hrs work)
+  3. Calculate total hours
+  4. If hours > 8: overtime = hours - 8
+  5. Return { workingHours, overtimeHours }
 ```
 
-### Calculation Function
+### Monthly Statistics
 ```text
-calculateMonthlyFromTask(taskRate, tasksPerMonth):
-  return taskRate * tasksPerMonth
+getMonthlyStats(records):
+  - presentDays: count where status = 'present' or 'half_day'
+  - absentDays: count where status = 'absent'
+  - leaveDays: count where status = 'leave'
+  - holidays: count where status = 'holiday' or 'weekend'
+  - totalWorkingHours: sum of working_hours
+  - totalOvertimeHours: sum of overtime_hours
 ```
 
 ---
 
-## Files to Modify
+## Files to Create/Modify
 
-1. **Database migration** - Add `task_based` to employment type, `per_task` to salary type, and add `estimated_tasks_per_month` column
-2. `src/lib/nepal-hr-calculations.ts` - Add task-based constants and calculation helper
-3. `src/hooks/useEmployees.ts` - Update interfaces and mutation logic for task-based
-4. `src/components/employees/EmployeeDialog.tsx` - Add task-based salary input fields
-5. `src/components/employees/EmployeeProfile.tsx` - Display task-based salary information
+### New Files
+1. `supabase/migrations/xxx_create_attendance_logs.sql` - Database table
+2. `src/hooks/useAttendance.ts` - Attendance data management hook
+3. `src/components/employees/AttendancePanel.tsx` - Check-in/out UI
+4. `src/components/employees/AttendanceCalendar.tsx` - Monthly calendar view
+5. `src/components/employees/AttendanceManagement.tsx` - Admin attendance management
+6. `src/components/employees/AttendanceDialog.tsx` - Edit attendance record dialog
+
+### Modified Files
+1. `src/pages/Employees.tsx` - Add Attendance tab
+2. `src/components/employees/EmployeeProfile.tsx` - Add Attendance tab
+3. `src/hooks/usePayroll.ts` - Use attendance data for payroll
+4. `src/hooks/useEmployeeLeaves.ts` - Auto-create attendance on leave approval
 
 ---
 
-## User Experience
+## User Experience Flow
 
-1. User selects "Task-based" employment type
-2. Financial tab automatically shows:
-   - "Per-Task Rate (NPR)" input
-   - "Estimated Tasks/Month" input
-3. User enters per-task rate (e.g., NPR 2,000) and estimated tasks (e.g., 10)
-4. System displays calculated monthly equivalent (NPR 20,000)
-5. Monthly equivalent is stored as `basic_salary` for payroll calculations
-6. Original rate stored in `hourly_rate` field, tasks stored in `estimated_tasks_per_month`
+### Employee Self-Service
+1. Employee opens Employee Profile or dedicated Attendance section
+2. Clicks "Check In" at start of work
+3. System records timestamp
+4. At end of day, clicks "Check Out"
+5. System calculates and displays working hours
+6. Employee can view monthly summary and history
 
+### Admin/Manager Flow
+1. Navigate to Employees > Attendance tab
+2. View all employees' attendance for selected date
+3. Can mark absent/present for employees who forgot
+4. View monthly reports per employee
+5. Edit historical records if needed
+6. Process payroll using accurate attendance data
+
+### Leave Integration Flow
+1. Employee submits leave request
+2. Manager approves leave
+3. System automatically creates attendance records
+4. Status set to 'leave', linked to leave request
+5. Payroll correctly reflects leave days
+
+---
+
+## Nepal Labour Act Compliance
+
+| Requirement | Implementation |
+|-------------|----------------|
+| 8 hours/day standard | Working hours tracked, overtime flagged |
+| 48 hours/week limit | Weekly summary available |
+| Overtime at 1.5x | Overtime hours calculated for payroll |
+| Leave integration | Approved leaves auto-marked in attendance |
+| 13 public holidays | Admin can mark company-wide holidays |
