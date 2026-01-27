@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { format, differenceInMonths, differenceInYears } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Employee } from '@/hooks/useEmployees';
 import { useEmployeeLeaves } from '@/hooks/useEmployeeLeaves';
 import { LeaveBalanceCard } from './LeaveBalanceCard';
+import { AttendancePanel } from './AttendancePanel';
+import { AttendanceCalendar } from './AttendanceCalendar';
+import { AttendanceDialog } from './AttendanceDialog';
+import { AttendanceLog } from '@/hooks/useAttendance';
 import {
   EMPLOYMENT_TYPES,
   isOnProbation,
@@ -36,6 +41,11 @@ export function EmployeeProfile({
   employee,
 }: EmployeeProfileProps) {
   const { leaveBalance, fiscalYear, calculateAvailableLeave } = useEmployeeLeaves(employee?.id);
+  const [attendanceDialogState, setAttendanceDialogState] = useState<{
+    open: boolean;
+    date: Date;
+    record?: AttendanceLog;
+  }>({ open: false, date: new Date() });
 
   if (!employee) return null;
 
@@ -94,10 +104,11 @@ export function EmployeeProfile({
         </div>
 
         <Tabs defaultValue="personal" className="mt-4">
-          <TabsList>
-            <TabsTrigger value="personal">Personal Info</TabsTrigger>
+          <TabsList className="grid grid-cols-5 w-full">
+            <TabsTrigger value="personal">Personal</TabsTrigger>
             <TabsTrigger value="employment">Employment</TabsTrigger>
             <TabsTrigger value="financial">Financial</TabsTrigger>
+            <TabsTrigger value="attendance">Attendance</TabsTrigger>
             <TabsTrigger value="leaves">Leaves</TabsTrigger>
           </TabsList>
 
@@ -350,6 +361,19 @@ export function EmployeeProfile({
             </Card>
           </TabsContent>
 
+          <TabsContent value="attendance" className="mt-4 space-y-4">
+            <AttendancePanel
+              employeeId={employee.id}
+              employeeName={employee.full_name}
+            />
+            <AttendanceCalendar
+              employeeId={employee.id}
+              onDayClick={(date, record) => {
+                setAttendanceDialogState({ open: true, date, record });
+              }}
+            />
+          </TabsContent>
+
           <TabsContent value="leaves" className="mt-4">
             {availableLeave ? (
               <LeaveBalanceCard 
@@ -367,6 +391,16 @@ export function EmployeeProfile({
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Attendance Edit Dialog */}
+        <AttendanceDialog
+          open={attendanceDialogState.open}
+          onOpenChange={(open) => setAttendanceDialogState(prev => ({ ...prev, open }))}
+          employeeId={employee.id}
+          employeeName={employee.full_name}
+          date={attendanceDialogState.date}
+          existingRecord={attendanceDialogState.record}
+        />
       </DialogContent>
     </Dialog>
   );

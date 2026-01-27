@@ -8,6 +8,7 @@ import { EmployeeDashboard } from '@/components/employees/EmployeeDashboard';
 import { EmployeeDialog } from '@/components/employees/EmployeeDialog';
 import { EmployeeList } from '@/components/employees/EmployeeList';
 import { EmployeeProfile } from '@/components/employees/EmployeeProfile';
+import { AttendanceManagement } from '@/components/employees/AttendanceManagement';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Users, Calendar, Banknote } from 'lucide-react';
+import { Plus, Users, Calendar, Clock } from 'lucide-react';
 
 export default function Employees() {
   const { selectedCompany } = useCompanyContext();
@@ -122,6 +123,10 @@ export default function Employees() {
             <Calendar className="h-4 w-4" />
             On Probation ({employeesOnProbation.length})
           </TabsTrigger>
+          <TabsTrigger value="attendance" className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Attendance
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="all">
@@ -155,6 +160,10 @@ export default function Employees() {
             onReactivate={handleReactivate}
             onView={(emp) => setViewingEmployee(emp)}
           />
+        </TabsContent>
+
+        <TabsContent value="attendance">
+          <AttendanceManagement />
         </TabsContent>
       </Tabs>
 
