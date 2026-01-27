@@ -13,6 +13,7 @@ import {
 import { LeaveBalanceCard } from '@/components/employees/LeaveBalanceCard';
 import { LeaveRequestDialog } from '@/components/portal/LeaveRequestDialog';
 import { useEmployeeLeaves } from '@/hooks/useEmployeeLeaves';
+import { useCompanyLeaveTypes } from '@/hooks/useCompanyLeaveTypes';
 import { MyEmployee } from '@/hooks/useMyEmployee';
 import { format } from 'date-fns';
 import { Plus, FileText, Loader2 } from 'lucide-react';
@@ -32,7 +33,9 @@ export function PortalLeave({ employee }: PortalLeaveProps) {
     initializeLeaveBalance,
   } = useEmployeeLeaves(employee.id);
 
-  const availableLeave = calculateAvailableLeave(leaveBalance, employee.gender);
+  const { leaveTypes, isLoading: leaveTypesLoading } = useCompanyLeaveTypes(employee.company_id);
+
+  const availableLeave = calculateAvailableLeave(leaveBalance, employee.gender, leaveTypes);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -68,7 +71,7 @@ export function PortalLeave({ employee }: PortalLeaveProps) {
     });
   };
 
-  if (isLoading) {
+  if (isLoading || leaveTypesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[200px]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -84,6 +87,7 @@ export function PortalLeave({ employee }: PortalLeaveProps) {
           fiscalYear={fiscalYear}
           availableLeave={availableLeave}
           gender={employee.gender}
+          leaveTypes={leaveTypes}
         />
       ) : (
         <Card>
@@ -154,6 +158,7 @@ export function PortalLeave({ employee }: PortalLeaveProps) {
         employee={employee}
         availableLeave={availableLeave}
         companyId={employee.company_id}
+        leaveTypes={leaveTypes}
       />
     </div>
   );
