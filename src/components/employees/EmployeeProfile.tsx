@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { format, differenceInMonths, differenceInYears } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Employee } from '@/hooks/useEmployees';
 import { useEmployeeLeaves } from '@/hooks/useEmployeeLeaves';
+import { useTeamUsers } from '@/hooks/useTeamUsers';
 import { LeaveBalanceCard } from './LeaveBalanceCard';
 import { AttendancePanel } from './AttendancePanel';
 import { AttendanceCalendar } from './AttendanceCalendar';
@@ -27,6 +28,9 @@ import {
   CreditCard,
   FileText,
   Clock,
+  Link2,
+  Link2Off,
+  Mail,
 } from 'lucide-react';
 
 interface EmployeeProfileProps {
@@ -41,11 +45,19 @@ export function EmployeeProfile({
   employee,
 }: EmployeeProfileProps) {
   const { leaveBalance, fiscalYear, calculateAvailableLeave } = useEmployeeLeaves(employee?.id);
+  const { users } = useTeamUsers();
   const [attendanceDialogState, setAttendanceDialogState] = useState<{
     open: boolean;
     date: Date;
     record?: AttendanceLog;
   }>({ open: false, date: new Date() });
+
+  // Get linked user email
+  const linkedUserEmail = useMemo(() => {
+    if (!employee?.user_id) return null;
+    const linkedUser = users.find(u => u.id === employee.user_id);
+    return linkedUser?.email || null;
+  }, [employee?.user_id, users]);
 
   if (!employee) return null;
 
@@ -155,6 +167,36 @@ export function EmployeeProfile({
                     </a>
                   </div>
                 )}
+                
+                {/* Linked Account Section */}
+                <div className="col-span-2 mt-4">
+                  <Separator className="my-4" />
+                  <div className="text-sm text-muted-foreground mb-2">Linked User Account</div>
+                  {linkedUserEmail ? (
+                    <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                      <Link2 className="h-4 w-4 text-green-500" />
+                      <div>
+                        <div className="font-medium text-green-600 flex items-center gap-1.5">
+                          <Mail className="h-3.5 w-3.5" />
+                          {linkedUserEmail}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Has access to Employee Portal for self-service
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                      <Link2Off className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="font-medium text-muted-foreground">No account linked</div>
+                        <div className="text-xs text-muted-foreground">
+                          Edit employee to link a user account for portal access
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
