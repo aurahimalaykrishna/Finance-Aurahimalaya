@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useCallback } from 'react';
 import { useUserRoles, AppRole, Permission } from '@/hooks/useUserRoles';
 import { useCompanyAccess } from '@/hooks/useCompanyAccess';
 import { useCompanyContext } from '@/contexts/CompanyContext';
@@ -61,8 +61,8 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     return companySpecificAccess?.role || userRole || null;
   }, [selectedCompany, isAllCompanies, companyAccess, userRole]);
 
-  // Check permission for a specific company
-  const hasPermissionForCompany = (permission: Permission, companyId?: string): boolean => {
+  // Check permission for a specific company - memoized with useCallback
+  const hasPermissionForCompany = useCallback((permission: Permission, companyId?: string): boolean => {
     // Owner always has all permissions
     if (userRole === 'owner') return true;
 
@@ -82,7 +82,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     if (!effectiveRole) return false;
 
     return PERMISSIONS[effectiveRole].includes(permission as never);
-  };
+  }, [userRole, selectedCompany?.id, isAllCompanies, hasPermission, companyAccess]);
 
   const canViewOwnData = hasPermission('view_own_data');
   const canApplyLeavePermission = hasPermission('apply_leave');
