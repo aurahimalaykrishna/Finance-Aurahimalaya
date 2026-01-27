@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText, ArrowUpDown, ChevronUp, ChevronDown, Truck, X, PiggyBank, Split } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownRight, Search, Upload, Building2, Pencil, Eye, Download, FileSpreadsheet, FileText, ArrowUpDown, ChevronUp, ChevronDown, Truck, X, PiggyBank, Split, BarChart3, CheckCircle2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { DateRange } from 'react-day-picker';
@@ -40,6 +40,7 @@ export default function Transactions() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'categorized' | 'uncategorized'>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkActionOpen, setBulkActionOpen] = useState(false);
   
@@ -121,8 +122,9 @@ export default function Transactions() {
     }
   };
 
-  const filteredTransactions = useMemo(() => {
-    const filtered = transactions.filter(t => {
+  // Base filtered transactions (before category filter) - used for stats calculation
+  const baseFilteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
       const matchesSearch = t.description?.toLowerCase().includes(search.toLowerCase()) ||
         t.categories?.name.toLowerCase().includes(search.toLowerCase());
       const matchesType = typeFilter === 'all' || t.type === typeFilter;
@@ -139,6 +141,40 @@ export default function Transactions() {
       }
       
       return matchesSearch && matchesType && matchesDate;
+    });
+  }, [transactions, search, typeFilter, dateRange]);
+
+  // Calculate category statistics from base filtered transactions
+  const categoryStats = useMemo(() => {
+    const total = baseFilteredTransactions.length;
+    const categorized = baseFilteredTransactions.filter(t => t.category_id !== null);
+    const uncategorized = baseFilteredTransactions.filter(t => t.category_id === null);
+    
+    const categorizedAmount = categorized.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+    const uncategorizedAmount = uncategorized.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
+    const totalAmount = categorizedAmount + uncategorizedAmount;
+    
+    return {
+      total,
+      totalAmount,
+      categorizedCount: categorized.length,
+      categorizedAmount,
+      categorizedPercentage: total > 0 ? (categorized.length / total * 100).toFixed(1) : '0',
+      uncategorizedCount: uncategorized.length,
+      uncategorizedAmount,
+      uncategorizedPercentage: total > 0 ? (uncategorized.length / total * 100).toFixed(1) : '0',
+    };
+  }, [baseFilteredTransactions]);
+
+  const filteredTransactions = useMemo(() => {
+    // Apply category filter on top of base filtered transactions
+    const filtered = baseFilteredTransactions.filter(t => {
+      if (categoryFilter === 'categorized') {
+        return t.category_id !== null;
+      } else if (categoryFilter === 'uncategorized') {
+        return t.category_id === null;
+      }
+      return true;
     });
 
     // Sort the filtered results
@@ -170,7 +206,7 @@ export default function Transactions() {
       
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [transactions, search, typeFilter, dateRange, sortField, sortDirection]);
+  }, [baseFilteredTransactions, categoryFilter, sortField, sortDirection]);
 
   const SortableHeader = ({ field, children, className }: { field: SortField; children: React.ReactNode; className?: string }) => (
     <TableHead 
@@ -432,6 +468,90 @@ export default function Transactions() {
         <div className="bg-muted/50 border rounded-lg p-3 text-sm text-muted-foreground flex items-center gap-2">
           <Building2 className="h-4 w-4" />
           Viewing all companies. Select a specific company to add or import transactions.
+        </div>
+      )}
+
+      {/* Category Statistics */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card 
+          className={cn(
+            "border-border/50 cursor-pointer transition-all hover:shadow-md",
+            categoryFilter === 'all' && "ring-2 ring-primary"
+          )}
+          onClick={() => setCategoryFilter('all')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-muted-foreground">Total Transactions</span>
+              <BarChart3 className="h-4 w-4 text-primary" />
+            </div>
+            <div className="mt-2">
+              <div className="text-2xl font-bold">{categoryStats.total}</div>
+              <p className="text-sm text-muted-foreground">
+                {getCurrencySymbol(selectedCompany?.currency || 'NPR')}{categoryStats.totalAmount.toLocaleString()}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card 
+          className={cn(
+            "border-border/50 cursor-pointer transition-all hover:shadow-md",
+            categoryFilter === 'categorized' && "ring-2 ring-green-500"
+          )}
+          onClick={() => setCategoryFilter('categorized')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-muted-foreground">Categorized</span>
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+            </div>
+            <div className="mt-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-green-500">{categoryStats.categorizedCount}</span>
+                <span className="text-sm text-muted-foreground">({categoryStats.categorizedPercentage}%)</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {getCurrencySymbol(selectedCompany?.currency || 'NPR')}{categoryStats.categorizedAmount.toLocaleString()}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card 
+          className={cn(
+            "border-border/50 cursor-pointer transition-all hover:shadow-md",
+            categoryFilter === 'uncategorized' && "ring-2 ring-orange-500",
+            categoryStats.uncategorizedCount > 0 && "bg-orange-500/5"
+          )}
+          onClick={() => setCategoryFilter('uncategorized')}
+        >
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-muted-foreground">Uncategorized</span>
+              <AlertCircle className="h-4 w-4 text-orange-500" />
+            </div>
+            <div className="mt-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-orange-500">{categoryStats.uncategorizedCount}</span>
+                <span className="text-sm text-muted-foreground">({categoryStats.uncategorizedPercentage}%)</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {getCurrencySymbol(selectedCompany?.currency || 'NPR')}{categoryStats.uncategorizedAmount.toLocaleString()}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {categoryFilter !== 'all' && (
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-sm">
+            Showing: {categoryFilter === 'categorized' ? 'Categorized' : 'Uncategorized'} transactions
+          </Badge>
+          <Button variant="ghost" size="sm" onClick={() => setCategoryFilter('all')}>
+            <X className="h-4 w-4 mr-1" /> Clear filter
+          </Button>
         </div>
       )}
 
