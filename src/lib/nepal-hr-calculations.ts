@@ -199,6 +199,57 @@ export const EMPLOYMENT_TYPES = [
   { value: 'part_time', label: 'Part-time' },
 ] as const;
 
+// Salary types
+export const SALARY_TYPES = [
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'hourly', label: 'Hourly' },
+] as const;
+
+export type SalaryType = 'monthly' | 'daily' | 'hourly';
+export type EmploymentType = 'regular' | 'work_based' | 'time_bound' | 'casual' | 'part_time';
+
+// Mapping from employment type to salary type
+export const EMPLOYMENT_TO_SALARY_MAP: Record<EmploymentType, SalaryType> = {
+  regular: 'monthly',
+  time_bound: 'monthly',
+  work_based: 'daily',
+  casual: 'hourly',
+  part_time: 'hourly',
+};
+
+// Get salary type for employment type
+export function getSalaryTypeForEmployment(employmentType: EmploymentType): SalaryType {
+  return EMPLOYMENT_TO_SALARY_MAP[employmentType] || 'monthly';
+}
+
+// Calculate monthly equivalent from daily rate (26 working days)
+export function calculateMonthlyFromDaily(dailyRate: number): number {
+  return Math.round(dailyRate * 26 * 100) / 100;
+}
+
+// Calculate monthly equivalent from hourly rate (208 hours = 26 days x 8 hours)
+export function calculateMonthlyFromHourly(hourlyRate: number): number {
+  return Math.round(hourlyRate * 208 * 100) / 100;
+}
+
+// Calculate original rate from monthly salary based on salary type
+export function calculateRateFromMonthly(monthlySalary: number, salaryType: SalaryType): number {
+  switch (salaryType) {
+    case 'daily':
+      return Math.round((monthlySalary / 26) * 100) / 100;
+    case 'hourly':
+      return Math.round((monthlySalary / 208) * 100) / 100;
+    default:
+      return monthlySalary;
+  }
+}
+
+// Get salary type label
+export function getSalaryTypeLabel(salaryType: SalaryType): string {
+  return SALARY_TYPES.find(t => t.value === salaryType)?.label || 'Monthly';
+}
+
 // Leave types
 export const LEAVE_TYPES = [
   { value: 'home', label: 'Home Leave' },

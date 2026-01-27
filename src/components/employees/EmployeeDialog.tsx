@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -12,7 +13,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Employee, CreateEmployeeData } from '@/hooks/useEmployees';
-import { EMPLOYMENT_TYPES, DEFAULT_PROBATION_MONTHS } from '@/lib/nepal-hr-calculations';
+import { 
+  EMPLOYMENT_TYPES, 
+  DEFAULT_PROBATION_MONTHS,
+  getSalaryTypeForEmployment,
+  calculateMonthlyFromDaily,
+  calculateMonthlyFromHourly,
+  getSalaryTypeLabel,
+  EmploymentType,
+  SalaryType
+} from '@/lib/nepal-hr-calculations';
 import { EmployeeDocumentUpload } from './EmployeeDocumentUpload';
 
 interface EmployeeDialogProps {
@@ -47,6 +57,8 @@ export function EmployeeDialog({
     ssf_number: '',
     basic_salary: 0,
     dearness_allowance: 0,
+    salary_type: 'monthly',
+    hourly_rate: 0,
   });
 
   useEffect(() => {
@@ -68,6 +80,8 @@ export function EmployeeDialog({
         ssf_number: employee.ssf_number || '',
         basic_salary: employee.basic_salary,
         dearness_allowance: employee.dearness_allowance,
+        salary_type: employee.salary_type || getSalaryTypeForEmployment(employee.employment_type),
+        hourly_rate: employee.hourly_rate || 0,
       });
     } else {
       setFormData({
@@ -87,9 +101,41 @@ export function EmployeeDialog({
         ssf_number: '',
         basic_salary: 0,
         dearness_allowance: 0,
+        salary_type: 'monthly',
+        hourly_rate: 0,
       });
     }
   }, [employee, open]);
+
+  // Auto-update salary type when employment type changes
+  const handleEmploymentTypeChange = (value: EmploymentType) => {
+    const newSalaryType = getSalaryTypeForEmployment(value);
+    setFormData(prev => ({ 
+      ...prev, 
+      employment_type: value,
+      salary_type: newSalaryType,
+      // Reset rates when changing employment type
+      hourly_rate: 0,
+      basic_salary: prev.salary_type === 'monthly' ? prev.basic_salary : 0
+    }));
+  };
+
+  // Calculate monthly equivalent for display
+  const monthlyEquivalent = useMemo(() => {
+    const salaryType = formData.salary_type || 'monthly';
+    const rate = formData.hourly_rate || 0;
+    
+    if (salaryType === 'monthly') {
+      return formData.basic_salary;
+    } else if (salaryType === 'daily') {
+      return calculateMonthlyFromDaily(rate);
+    } else if (salaryType === 'hourly') {
+      return calculateMonthlyFromHourly(rate);
+    }
+    return 0;
+  }, [formData.salary_type, formData.hourly_rate, formData.basic_salary]);
+
+  const salaryType = formData.salary_type || 'monthly';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,7 +268,7 @@ export function EmployeeDialog({
                   <Label htmlFor="employment_type">Employment Type *</Label>
                   <Select
                     value={formData.employment_type}
-                    onValueChange={(value) => updateField('employment_type', value as CreateEmployeeData['employment_type'])}
+                    onValueChange={(value) => handleEmploymentTypeChange(value as EmploymentType)}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -235,6 +281,9 @@ export function EmployeeDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Salary type: {getSalaryTypeLabel(getSalaryTypeForEmployment(formData.employment_type))}
+                  </p>
                 </div>
 
                 <div>
@@ -299,17 +348,81 @@ export function EmployeeDialog({
                 </div>
 
                 <div>
-                  <Label htmlFor="basic_salary">Basic Salary (NPR) *</Label>
-                  <Input
-                    id="basic_salary"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.basic_salary}
-                    onChange={(e) => updateField('basic_salary', parseFloat(e.target.value) || 0)}
-                    required
-                  />
+                  <Label>Salary Type</Label>
+                  <div className="flex items-center gap-2 h-10">
+                    <Badge variant="secondary" className="text-sm">
+                      {getSalaryTypeLabel(salaryType)}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      (Based on {EMPLOYMENT_TYPES.find(t => t.value === formData.employment_type)?.label} employment)
+                    </span>
+                  </div>
                 </div>
+
+                {salaryType === 'monthly' ? (
+                  <div>
+                    <Label htmlFor="basic_salary">Basic Salary (NPR) *</Label>
+                    <Input
+                      id="basic_salary"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.basic_salary}
+                      onChange={(e) => updateField('basic_salary', parseFloat(e.target.value) || 0)}
+                      required
+                    />
+                  </div>
+                ) : salaryType === 'daily' ? (
+                  <div>
+                    <Label htmlFor="daily_rate">Daily Rate (NPR) *</Label>
+                    <Input
+                      id="daily_rate"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.hourly_rate || ''}
+                      onChange={(e) => updateField('hourly_rate', parseFloat(e.target.value) || 0)}
+                      placeholder="Enter daily rate"
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Monthly = Daily rate × 26 working days
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <Label htmlFor="hourly_rate">Hourly Rate (NPR) *</Label>
+                    <Input
+                      id="hourly_rate"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.hourly_rate || ''}
+                      onChange={(e) => updateField('hourly_rate', parseFloat(e.target.value) || 0)}
+                      placeholder="Enter hourly rate"
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Monthly = Hourly rate × 208 hours (26 days × 8 hrs)
+                    </p>
+                  </div>
+                )}
+
+                {salaryType !== 'monthly' && (
+                  <div>
+                    <Label>Monthly Equivalent</Label>
+                    <div className="h-10 flex items-center">
+                      <span className="text-lg font-semibold text-primary">
+                        NPR {monthlyEquivalent.toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {salaryType === 'daily' 
+                        ? `${formData.hourly_rate || 0} × 26 days`
+                        : `${formData.hourly_rate || 0} × 208 hours`}
+                    </p>
+                  </div>
+                )}
 
                 <div>
                   <Label htmlFor="dearness_allowance">Dearness Allowance (NPR)</Label>

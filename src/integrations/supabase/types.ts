@@ -616,11 +616,13 @@ export type Database = {
           employment_type: string
           full_name: string
           gender: string
+          hourly_rate: number | null
           id: string
           is_active: boolean | null
           marital_status: string
           pan_number: string | null
           probation_end_date: string | null
+          salary_type: string
           ssf_number: string | null
           termination_date: string | null
           updated_at: string | null
@@ -641,11 +643,13 @@ export type Database = {
           employment_type: string
           full_name: string
           gender: string
+          hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
           marital_status?: string
           pan_number?: string | null
           probation_end_date?: string | null
+          salary_type?: string
           ssf_number?: string | null
           termination_date?: string | null
           updated_at?: string | null
@@ -666,11 +670,13 @@ export type Database = {
           employment_type?: string
           full_name?: string
           gender?: string
+          hourly_rate?: number | null
           id?: string
           is_active?: boolean | null
           marital_status?: string
           pan_number?: string | null
           probation_end_date?: string | null
+          salary_type?: string
           ssf_number?: string | null
           termination_date?: string | null
           updated_at?: string | null
