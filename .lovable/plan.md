@@ -1,235 +1,166 @@
 
-# Plan: Leave CRUD Enhancement
+# Plan: Leave Type Configuration CRUD
 
 ## Overview
 
-Add complete CRUD operations for leave requests, allowing employees to edit and cancel their pending requests, while managers have full control over all requests.
+Build a complete Leave Type Configuration system that allows companies to create, read, update, and delete custom leave types. This replaces the current hardcoded leave entitlements with a flexible, company-specific configuration.
 
 ---
 
-## Current State Analysis
+## Current State
 
-| Operation | Employee (Portal) | Manager (Admin) |
-|-----------|-------------------|-----------------|
-| **Create** | Can submit leave requests | N/A |
-| **Read** | Can view own requests | Can view all company requests |
-| **Update** | NOT AVAILABLE | Approve/Reject only |
-| **Delete/Cancel** | NOT AVAILABLE | Can delete any request |
+Currently, leave types are hardcoded in `src/lib/nepal-hr-calculations.ts`:
 
----
+| Leave Type | Default Entitlement |
+|------------|---------------------|
+| Home Leave | 1 day per 20 working days (max 90) |
+| Sick Leave | 12 days/year (max 45) |
+| Maternity | 60 days paid |
+| Paternity | 15 days |
+| Mourning | 13 days |
+| Public Holiday | 13-14 days |
 
-## What Needs to Be Added
-
-### For Employees (Portal)
-
-1. **Cancel Pending Request** - Button to withdraw a pending leave request
-2. **Edit Pending Request** - Modify dates/type/reason of pending requests
-3. **View Request Details** - Expand row to see full details including reason
-
-### For Managers (Leave Requests Page)
-
-1. **Delete Request** - Remove any leave request (not just approve/reject)
-2. **View Full History** - See all requests with search/filter capabilities
+**Problem**: Companies cannot customize these values or add new leave types like "Casual Leave", "Study Leave", etc.
 
 ---
 
-## Part 1: Database Changes
+## What We Will Build
 
-### 1.1 Add RLS Policy for Employee Self-Update
+### 1. Database Schema
 
-Allow employees to update their own pending requests:
+Create a new `company_leave_types` table to store configurable leave types per company:
 
 ```sql
-CREATE POLICY "Employees can update own pending leave requests"
-ON public.employee_leave_requests FOR UPDATE
-USING (
-  EXISTS (
-    SELECT 1 FROM employees e 
-    WHERE e.id = employee_leave_requests.employee_id 
-    AND e.user_id = auth.uid()
-  )
-  AND status = 'pending'
+CREATE TABLE public.company_leave_types (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  
+  -- Leave type identification
+  code TEXT NOT NULL,           -- 'home', 'sick', 'casual', etc.
+  name TEXT NOT NULL,           -- 'Home Leave', 'Sick Leave', etc.
+  
+  -- Entitlement configuration
+  annual_entitlement DECIMAL(5,2) NOT NULL DEFAULT 0,
+  max_accrual DECIMAL(5,2),     -- NULL means unlimited
+  max_carry_forward DECIMAL(5,2) DEFAULT 0,
+  
+  -- Accrual settings
+  accrual_type TEXT NOT NULL DEFAULT 'annual',  -- 'annual', 'monthly', 'per_working_days'
+  accrual_rate DECIMAL(5,2),    -- For per_working_days: days earned per N working days
+  accrual_per_days INTEGER,     -- N working days required for accrual
+  
+  -- Gender restrictions
+  gender_restriction TEXT,      -- NULL = all, 'male', 'female'
+  
+  -- Leave behavior
+  is_paid BOOLEAN DEFAULT true,
+  requires_approval BOOLEAN DEFAULT true,
+  is_active BOOLEAN DEFAULT true,
+  
+  -- Display
+  color TEXT DEFAULT '#6366f1',
+  icon TEXT DEFAULT 'calendar',
+  display_order INTEGER DEFAULT 0,
+  
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  
+  UNIQUE(company_id, code)
 );
 ```
 
-This ensures:
-- Employees can only update their OWN requests
-- Only PENDING requests can be modified
-- Once approved/rejected, employees cannot change them
+### 2. Default Leave Types Initialization
 
----
+When a company enables HR features, auto-create default Nepal Labour Act leave types:
 
-## Part 2: Hook Enhancements
+| Code | Name | Annual | Max Accrual | Carry Forward | Accrual Type |
+|------|------|--------|-------------|---------------|--------------|
+| home | Home Leave | 18 | 90 | 90 | per_working_days (1 per 20) |
+| sick | Sick Leave | 12 | 45 | 45 | monthly |
+| maternity | Maternity Leave | 60 | - | 0 | annual (female only) |
+| paternity | Paternity Leave | 15 | - | 0 | annual (male only) |
+| mourning | Mourning Leave | 13 | - | 0 | annual |
 
-### 2.1 Update useEmployeeLeaves.ts
+### 3. RLS Policies
 
-Add new mutations:
+```sql
+-- View: All company members can see leave types
+CREATE POLICY "Users can view company leave types"
+ON public.company_leave_types FOR SELECT
+USING (has_company_access(auth.uid(), company_id));
 
-| Mutation | Purpose |
-|----------|---------|
-| `cancelLeaveRequest` | Employee cancels their pending request |
-| `updateLeaveRequest` | Employee edits dates/type/reason |
-| `deleteLeaveRequest` | Manager permanently deletes a request |
-
-```typescript
-// Cancel mutation (employee)
-const cancelLeaveRequest = useMutation({
-  mutationFn: async (requestId: string) => {
-    const { error } = await supabase
-      .from('employee_leave_requests')
-      .update({ status: 'cancelled' })
-      .eq('id', requestId)
-      .eq('status', 'pending'); // Safety: only cancel if still pending
-    if (error) throw error;
-  },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ['employee-leave-requests'] });
-    toast({ title: 'Leave request cancelled' });
-  },
-});
-
-// Update mutation (employee)
-const updateLeaveRequest = useMutation({
-  mutationFn: async (data: UpdateLeaveRequestData) => {
-    const { error } = await supabase
-      .from('employee_leave_requests')
-      .update({
-        leave_type: data.leave_type,
-        start_date: data.start_date,
-        end_date: data.end_date,
-        days_requested: data.days_requested,
-        reason: data.reason,
-      })
-      .eq('id', data.id)
-      .eq('status', 'pending');
-    if (error) throw error;
-  },
-});
-
-// Delete mutation (manager)
-const deleteLeaveRequest = useMutation({
-  mutationFn: async (requestId: string) => {
-    const { error } = await supabase
-      .from('employee_leave_requests')
-      .delete()
-      .eq('id', requestId);
-    if (error) throw error;
-  },
-});
+-- Manage: Only Owners, Admins, HR Managers can manage
+CREATE POLICY "Admins can manage company leave types"
+ON public.company_leave_types FOR ALL
+USING (
+  has_company_access(auth.uid(), company_id) AND 
+  has_any_role(auth.uid(), ARRAY['owner', 'admin', 'hr_manager']::app_role[])
+);
 ```
 
 ---
 
-## Part 3: Employee Portal UI
+## UI Design
 
-### 3.1 Update PortalLeave.tsx
+### Location: Company Profile > HR Settings Tab
 
-Add action buttons to the leave request table:
+Add a new "HR Settings" tab to the Company Profile page:
 
 ```text
-+----------------------------------------------------------------+
-| My Leave Requests                           [+ Apply Leave]    |
-+----------------------------------------------------------------+
-| Type         | From       | To         | Days | Status | Actions |
-|--------------|------------|------------|------|--------|---------|
-| Home Leave   | Jan 20     | Jan 22     | 3    | Pending| [Edit] [Cancel] |
-| Sick Leave   | Dec 15     | Dec 16     | 2    | Approved |        |
-| Home Leave   | Nov 10     | Nov 11     | 2    | Rejected |        |
-+----------------------------------------------------------------+
+Company Profile
+├── Overview
+├── Team
+├── Transactions
+├── Bank Accounts
+├── Categories
+└── HR Settings  <-- NEW TAB
+    └── Leave Types
 ```
 
-**Actions visible only for pending requests:**
-- Edit button (opens dialog with pre-filled values)
-- Cancel button (opens confirmation dialog)
-
-### 3.2 Create CancelLeaveDialog Component
-
-A simple confirmation dialog for canceling requests:
+### Leave Types Management UI
 
 ```text
-+------------------------------------------+
-| Cancel Leave Request?                    |
-+------------------------------------------+
-| Are you sure you want to cancel this     |
-| leave request?                           |
-|                                          |
-| Home Leave: Jan 20-22, 2026 (3 days)    |
-|                                          |
-|                   [Keep] [Cancel Request]|
-+------------------------------------------+
++------------------------------------------------------------------+
+| Leave Types Configuration                         [+ Add Leave]  |
++------------------------------------------------------------------+
+| Drag to reorder                                                   |
++------------------------------------------------------------------+
+| ≡  Home Leave          | 18 days/year | Max: 90  | [Edit] [Delete]|
+| ≡  Sick Leave          | 12 days/year | Max: 45  | [Edit] [Delete]|
+| ≡  Maternity Leave     | 60 days      | Female   | [Edit] [Delete]|
+| ≡  Paternity Leave     | 15 days      | Male     | [Edit] [Delete]|
+| ≡  Mourning Leave      | 13 days      | -        | [Edit] [Delete]|
++------------------------------------------------------------------+
 ```
 
-### 3.3 Update LeaveRequestDialog for Edit Mode
-
-Modify the existing dialog to support editing:
-- Accept optional `existingRequest` prop
-- Pre-fill form fields when editing
-- Change button text from "Submit Request" to "Update Request"
-- Use `updateLeaveRequest` mutation when in edit mode
-
----
-
-## Part 4: Manager UI Enhancements
-
-### 4.1 Update LeaveRequestsQueue.tsx
-
-Add delete action for managers:
-
-```text
-+---------------------------------------------------+
-| Ram Sharma - Home Leave                           |
-| Jan 20-22, 2026 (3 days)                         |
-|                         [Delete] [Reject] [Approve]|
-+---------------------------------------------------+
-```
-
-Add for approved/rejected requests:
-- Delete button to permanently remove records
-- Useful for cleanup or data corrections
-
-### 4.2 Create DeleteLeaveDialog Component
-
-Confirmation dialog for permanent deletion:
+### Add/Edit Leave Type Dialog
 
 ```text
 +------------------------------------------+
-| Delete Leave Request?                    |
+| Add Leave Type                           |
 +------------------------------------------+
-| This will permanently delete this leave  |
-| request. This action cannot be undone.   |
+| Leave Code *        [casual_leave    ]   |
+| Leave Name *        [Casual Leave    ]   |
 |                                          |
-| Employee: Ram Sharma                     |
-| Type: Home Leave                         |
-| Status: Approved                         |
+| --- Entitlement ---                      |
+| Annual Days *       [    10         ]    |
+| Max Accrual         [    20         ]    |
+| Carry Forward       [     5         ]    |
 |                                          |
-|                      [Cancel] [Delete]   |
-+------------------------------------------+
-```
-
----
-
-## Part 5: Request Details View
-
-### 5.1 Create LeaveRequestDetailDialog
-
-Show full details when clicking on a request:
-
-```text
-+------------------------------------------+
-| Leave Request Details                    |
-+------------------------------------------+
-| Employee: Ram Sharma                     |
-| Department: Engineering                  |
-| Type: Home Leave                         |
-| Dates: Jan 20-22, 2026 (3 days)         |
-| Status: Approved                         |
-| Approved By: Manager Name                |
-| Approved On: Jan 18, 2026               |
+| --- Accrual Type ---                     |
+| ( ) Annual - All days at year start     |
+| ( ) Monthly - Proportional by month      |
+| ( ) Per Working Days                     |
+|     Days earned: [1] per [20] work days  |
 |                                          |
-| Reason:                                  |
-| Family function in hometown              |
+| --- Restrictions ---                     |
+| Gender: [All Employees      ▼]           |
 |                                          |
-| Applied On: Jan 15, 2026                |
+| [x] Paid Leave                           |
+| [x] Requires Approval                    |
+| [x] Active                               |
+|                                          |
+|                  [Cancel] [Save Leave]   |
 +------------------------------------------+
 ```
 
@@ -239,117 +170,168 @@ Show full details when clicking on a request:
 
 | File | Purpose |
 |------|---------|
-| `src/components/portal/CancelLeaveDialog.tsx` | Confirm cancel for employees |
-| `src/components/leave/DeleteLeaveDialog.tsx` | Confirm delete for managers |
-| `src/components/leave/LeaveRequestDetailDialog.tsx` | View full request details |
+| `src/hooks/useCompanyLeaveTypes.ts` | CRUD mutations and queries for leave types |
+| `src/components/company/profile/CompanyHRSettings.tsx` | HR Settings tab content |
+| `src/components/company/profile/LeaveTypeDialog.tsx` | Add/Edit leave type dialog |
+| `src/components/company/profile/LeaveTypeCard.tsx` | Individual leave type display card |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/hooks/useEmployeeLeaves.ts` | Add cancel, update, delete mutations |
-| `src/components/portal/PortalLeave.tsx` | Add action buttons, edit/cancel dialogs |
-| `src/components/portal/LeaveRequestDialog.tsx` | Support edit mode with existing request |
-| `src/components/leave/LeaveRequestsQueue.tsx` | Add delete button, detail view |
+| `src/pages/CompanyProfile.tsx` | Add "HR Settings" tab |
+| `src/hooks/useEmployeeLeaves.ts` | Fetch leave types from DB instead of constants |
+| `src/components/portal/LeaveRequestDialog.tsx` | Use dynamic leave types from DB |
+| `src/components/employees/ManageLeaveBalanceDialog.tsx` | Use dynamic leave types |
+| `src/lib/nepal-hr-calculations.ts` | Keep as fallback/defaults, add initialization function |
 
 ---
 
 ## Database Migration
 
-Add RLS policy to allow employees to update/cancel their own pending requests:
-
 ```sql
--- Allow employees to update their own PENDING leave requests only
-CREATE POLICY "Employees can update own pending leave requests"
-ON public.employee_leave_requests FOR UPDATE
-USING (
-  EXISTS (
-    SELECT 1 FROM employees e 
-    WHERE e.id = employee_leave_requests.employee_id 
-    AND e.user_id = auth.uid()
-  )
-  AND status = 'pending'
+-- Create leave types table
+CREATE TABLE public.company_leave_types (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  code TEXT NOT NULL,
+  name TEXT NOT NULL,
+  annual_entitlement DECIMAL(5,2) NOT NULL DEFAULT 0,
+  max_accrual DECIMAL(5,2),
+  max_carry_forward DECIMAL(5,2) DEFAULT 0,
+  accrual_type TEXT NOT NULL DEFAULT 'annual' 
+    CHECK (accrual_type IN ('annual', 'monthly', 'per_working_days')),
+  accrual_rate DECIMAL(5,2),
+  accrual_per_days INTEGER,
+  gender_restriction TEXT CHECK (gender_restriction IN ('male', 'female') OR gender_restriction IS NULL),
+  is_paid BOOLEAN DEFAULT true,
+  requires_approval BOOLEAN DEFAULT true,
+  is_active BOOLEAN DEFAULT true,
+  color TEXT DEFAULT '#6366f1',
+  icon TEXT DEFAULT 'calendar',
+  display_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(company_id, code)
 );
+
+-- Enable RLS
+ALTER TABLE public.company_leave_types ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Users can view company leave types"
+ON public.company_leave_types FOR SELECT
+USING (has_company_access(auth.uid(), company_id));
+
+CREATE POLICY "HR can insert company leave types"
+ON public.company_leave_types FOR INSERT
+WITH CHECK (
+  has_company_access(auth.uid(), company_id) AND 
+  has_any_role(auth.uid(), ARRAY['owner', 'admin', 'hr_manager']::app_role[])
+);
+
+CREATE POLICY "HR can update company leave types"
+ON public.company_leave_types FOR UPDATE
+USING (
+  has_company_access(auth.uid(), company_id) AND 
+  has_any_role(auth.uid(), ARRAY['owner', 'admin', 'hr_manager']::app_role[])
+);
+
+CREATE POLICY "HR can delete company leave types"
+ON public.company_leave_types FOR DELETE
+USING (
+  has_company_access(auth.uid(), company_id) AND 
+  has_any_role(auth.uid(), ARRAY['owner', 'admin', 'hr_manager']::app_role[])
+);
+
+-- Trigger for updated_at
+CREATE TRIGGER update_company_leave_types_updated_at
+  BEFORE UPDATE ON public.company_leave_types
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
 ```
 
 ---
 
-## Implementation Steps
+## Implementation Flow
 
-1. **Database**: Add RLS policy for employee self-update
-2. **Hooks**: Add cancel, update, delete mutations to useEmployeeLeaves
-3. **Employee UI**: 
-   - Create CancelLeaveDialog component
-   - Update LeaveRequestDialog for edit mode
-   - Update PortalLeave with action buttons
-4. **Manager UI**:
-   - Create DeleteLeaveDialog component
-   - Create LeaveRequestDetailDialog component
-   - Update LeaveRequestsQueue with delete action
+### Step 1: Database Setup
+- Create `company_leave_types` table with RLS policies
+
+### Step 2: Hook Implementation
+```typescript
+// useCompanyLeaveTypes.ts
+export function useCompanyLeaveTypes(companyId?: string) {
+  // Query all leave types for company
+  const { data: leaveTypes } = useQuery({...});
+  
+  // Mutations
+  const createLeaveType = useMutation({...});
+  const updateLeaveType = useMutation({...});
+  const deleteLeaveType = useMutation({...});
+  const initializeDefaults = useMutation({...});
+  
+  return { leaveTypes, createLeaveType, updateLeaveType, deleteLeaveType, initializeDefaults };
+}
+```
+
+### Step 3: UI Components
+1. Add "HR Settings" tab to CompanyProfile
+2. Create LeaveTypeDialog for add/edit
+3. Create list view with edit/delete actions
+
+### Step 4: Integration
+- Update LeaveRequestDialog to fetch leave types from DB
+- Update ManageLeaveBalanceDialog to use dynamic types
+- Update leave balance calculations to use configured values
 
 ---
 
-## UI Flow
+## Employee Portal Integration
 
-### Employee Canceling a Request
+The Employee Portal will automatically show the leave types configured for their company:
 
 ```text
-PortalLeave Table
-      ↓
-Click "Cancel" button (pending row)
-      ↓
-CancelLeaveDialog opens
-      ↓
-Confirm → cancelLeaveRequest mutation
-      ↓
-Status changes to "cancelled"
+Before (hardcoded):        After (dynamic):
++------------------+       +------------------+
+| Home Leave: 5    |       | Home Leave: 5    |
+| Sick Leave: 8    |       | Sick Leave: 8    |
+| Maternity: 60    |       | Casual Leave: 10 | <-- Custom type
++------------------+       | Study Leave: 5   | <-- Custom type
+                           +------------------+
 ```
 
-### Employee Editing a Request
+---
+
+## Data Flow
 
 ```text
-PortalLeave Table
-      ↓
-Click "Edit" button (pending row)
-      ↓
-LeaveRequestDialog opens (edit mode)
-      ↓
-Modify fields → Submit
-      ↓
-updateLeaveRequest mutation
-      ↓
-Request updated
-```
-
-### Manager Deleting a Request
-
-```text
-LeaveRequestsQueue
-      ↓
-Click "Delete" button (any request)
-      ↓
-DeleteLeaveDialog opens
-      ↓
-Confirm → deleteLeaveRequest mutation
-      ↓
-Request permanently removed
+Admin creates leave type
+        ↓
+Stored in company_leave_types table
+        ↓
+useCompanyLeaveTypes fetches for company
+        ↓
+Displayed in:
+  - Company Profile > HR Settings (admin view)
+  - Employee Portal > Apply Leave (employee view)
+  - Manager > Leave Requests Queue (manager view)
 ```
 
 ---
 
 ## Security Considerations
 
-- Employees can ONLY modify their OWN pending requests
-- Once approved/rejected, employees cannot change requests
-- Managers with `has_company_access` can update/delete any request
-- All mutations are protected by RLS policies
-- Status transitions are validated in the mutation logic
+1. **Role-based access**: Only Owner, Admin, HR Manager can create/edit/delete leave types
+2. **Company isolation**: Each company has its own leave types via RLS
+3. **Validation**: Code uniqueness enforced at DB level per company
+4. **Soft delete option**: `is_active` flag allows disabling without data loss
 
 ---
 
 ## Benefits
 
-1. **For Employees**: Full control over pending requests (edit dates, cancel)
-2. **For Managers**: Clean up old/incorrect requests with delete action
-3. **Better UX**: View full request details without navigating away
-4. **Data Integrity**: RLS ensures proper access control at database level
+1. **Flexibility**: Companies can define custom leave types (Casual, Study, Comp Off, etc.)
+2. **Compliance**: Different companies can have different Nepal Labour Act interpretations
+3. **Scalability**: Easy to add new leave types without code changes
+4. **Audit Trail**: Database tracks created_at/updated_at for all changes
