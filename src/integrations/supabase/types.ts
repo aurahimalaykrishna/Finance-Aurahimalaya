@@ -614,6 +614,7 @@ export type Database = {
           designation: string | null
           employee_code: string | null
           employment_type: string
+          estimated_tasks_per_month: number | null
           full_name: string
           gender: string
           hourly_rate: number | null
@@ -641,6 +642,7 @@ export type Database = {
           designation?: string | null
           employee_code?: string | null
           employment_type: string
+          estimated_tasks_per_month?: number | null
           full_name: string
           gender: string
           hourly_rate?: number | null
@@ -668,6 +670,7 @@ export type Database = {
           designation?: string | null
           employee_code?: string | null
           employment_type?: string
+          estimated_tasks_per_month?: number | null
           full_name?: string
           gender?: string
           hourly_rate?: number | null

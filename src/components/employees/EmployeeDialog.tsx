@@ -19,6 +19,7 @@ import {
   getSalaryTypeForEmployment,
   calculateMonthlyFromDaily,
   calculateMonthlyFromHourly,
+  calculateMonthlyFromTask,
   getSalaryTypeLabel,
   EmploymentType,
   SalaryType
@@ -59,6 +60,7 @@ export function EmployeeDialog({
     dearness_allowance: 0,
     salary_type: 'monthly',
     hourly_rate: 0,
+    estimated_tasks_per_month: 0,
   });
 
   useEffect(() => {
@@ -82,6 +84,7 @@ export function EmployeeDialog({
         dearness_allowance: employee.dearness_allowance,
         salary_type: employee.salary_type || getSalaryTypeForEmployment(employee.employment_type),
         hourly_rate: employee.hourly_rate || 0,
+        estimated_tasks_per_month: employee.estimated_tasks_per_month || 0,
       });
     } else {
       setFormData({
@@ -103,6 +106,7 @@ export function EmployeeDialog({
         dearness_allowance: 0,
         salary_type: 'monthly',
         hourly_rate: 0,
+        estimated_tasks_per_month: 0,
       });
     }
   }, [employee, open]);
@@ -116,6 +120,7 @@ export function EmployeeDialog({
       salary_type: newSalaryType,
       // Reset rates when changing employment type
       hourly_rate: 0,
+      estimated_tasks_per_month: 0,
       basic_salary: prev.salary_type === 'monthly' ? prev.basic_salary : 0
     }));
   };
@@ -124,6 +129,7 @@ export function EmployeeDialog({
   const monthlyEquivalent = useMemo(() => {
     const salaryType = formData.salary_type || 'monthly';
     const rate = formData.hourly_rate || 0;
+    const tasksPerMonth = formData.estimated_tasks_per_month || 0;
     
     if (salaryType === 'monthly') {
       return formData.basic_salary;
@@ -131,9 +137,11 @@ export function EmployeeDialog({
       return calculateMonthlyFromDaily(rate);
     } else if (salaryType === 'hourly') {
       return calculateMonthlyFromHourly(rate);
+    } else if (salaryType === 'per_task') {
+      return calculateMonthlyFromTask(rate, tasksPerMonth);
     }
     return 0;
-  }, [formData.salary_type, formData.hourly_rate, formData.basic_salary]);
+  }, [formData.salary_type, formData.hourly_rate, formData.basic_salary, formData.estimated_tasks_per_month]);
 
   const salaryType = formData.salary_type || 'monthly';
 
@@ -389,6 +397,37 @@ export function EmployeeDialog({
                       Monthly = Daily rate × 26 working days
                     </p>
                   </div>
+                ) : salaryType === 'per_task' ? (
+                  <>
+                    <div>
+                      <Label htmlFor="task_rate">Per-Task Rate (NPR) *</Label>
+                      <Input
+                        id="task_rate"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.hourly_rate || ''}
+                        onChange={(e) => updateField('hourly_rate', parseFloat(e.target.value) || 0)}
+                        placeholder="Enter per-task rate"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="estimated_tasks">Estimated Tasks/Month *</Label>
+                      <Input
+                        id="estimated_tasks"
+                        type="number"
+                        min="0"
+                        value={formData.estimated_tasks_per_month || ''}
+                        onChange={(e) => updateField('estimated_tasks_per_month', parseInt(e.target.value) || 0)}
+                        placeholder="Number of tasks per month"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Monthly = Task rate × estimated tasks
+                      </p>
+                    </div>
+                  </>
                 ) : (
                   <div>
                     <Label htmlFor="hourly_rate">Hourly Rate (NPR) *</Label>
@@ -419,7 +458,9 @@ export function EmployeeDialog({
                     <p className="text-xs text-muted-foreground mt-1">
                       {salaryType === 'daily' 
                         ? `${formData.hourly_rate || 0} × 26 days`
-                        : `${formData.hourly_rate || 0} × 208 hours`}
+                        : salaryType === 'hourly'
+                        ? `${formData.hourly_rate || 0} × 208 hours`
+                        : `${formData.hourly_rate || 0} × ${formData.estimated_tasks_per_month || 0} tasks`}
                     </p>
                   </div>
                 )}

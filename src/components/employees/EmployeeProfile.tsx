@@ -230,6 +230,19 @@ export function EmployeeProfile({
                   </div>
                 )}
 
+                {employee.salary_type === 'per_task' && employee.hourly_rate > 0 && (
+                  <>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Per-Task Rate</div>
+                      <div className="font-medium">{formatCurrency(employee.hourly_rate)}/task</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Estimated Tasks/Month</div>
+                      <div className="font-medium">{employee.estimated_tasks_per_month || 0} tasks</div>
+                    </div>
+                  </>
+                )}
+
                 <div>
                   <div className="text-sm text-muted-foreground">
                     {employee.salary_type === 'monthly' ? 'Basic Salary' : 'Monthly Equivalent'}
@@ -239,7 +252,9 @@ export function EmployeeProfile({
                     <p className="text-xs text-muted-foreground">
                       {employee.salary_type === 'daily' 
                         ? `${formatCurrency(employee.hourly_rate)} × 26 days`
-                        : `${formatCurrency(employee.hourly_rate)} × 208 hours`}
+                        : employee.salary_type === 'hourly'
+                        ? `${formatCurrency(employee.hourly_rate)} × 208 hours`
+                        : `${formatCurrency(employee.hourly_rate)} × ${employee.estimated_tasks_per_month || 0} tasks`}
                     </p>
                   )}
                 </div>
