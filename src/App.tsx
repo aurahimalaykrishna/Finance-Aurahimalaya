@@ -25,6 +25,7 @@ import Employees from "./pages/Employees";
 import Invoices from "./pages/Invoices";
 import Customers from "./pages/Customers";
 import EmployeePortal from "./pages/EmployeePortal";
+import RolePermissions from "./pages/RolePermissions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,7 @@ function AppRoutes() {
             <Route path="/audit-logs" element={<AuditLogs />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/users" element={<UserManagement />} />
+            <Route path="/roles" element={<RolePermissions />} />
             <Route path="/auth" element={<Dashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

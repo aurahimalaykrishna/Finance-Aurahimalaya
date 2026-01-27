@@ -57,8 +57,11 @@ const analyticsItems = [
   { title: 'Audit Logs', url: '/audit-logs', icon: FileText },
 ];
 
+import { ShieldCheck } from 'lucide-react';
+
 const settingsItems = [
   { title: 'User Management', url: '/users', icon: Users },
+  { title: 'Role Permissions', url: '/roles', icon: ShieldCheck },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
 
