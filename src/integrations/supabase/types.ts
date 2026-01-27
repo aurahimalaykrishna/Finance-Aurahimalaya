@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance_logs: {
+        Row: {
+          check_in: string | null
+          check_out: string | null
+          created_at: string | null
+          created_by: string
+          date: string
+          employee_id: string
+          id: string
+          leave_request_id: string | null
+          notes: string | null
+          overtime_hours: number | null
+          status: string
+          updated_at: string | null
+          working_hours: number | null
+        }
+        Insert: {
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string | null
+          created_by: string
+          date: string
+          employee_id: string
+          id?: string
+          leave_request_id?: string | null
+          notes?: string | null
+          overtime_hours?: number | null
+          status?: string
+          updated_at?: string | null
+          working_hours?: number | null
+        }
+        Update: {
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string | null
+          created_by?: string
+          date?: string
+          employee_id?: string
+          id?: string
+          leave_request_id?: string | null
+          notes?: string | null
+          overtime_hours?: number | null
+          status?: string
+          updated_at?: string | null
+          working_hours?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_logs_leave_request_id_fkey"
+            columns: ["leave_request_id"]
+            isOneToOne: false
+            referencedRelation: "employee_leave_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
