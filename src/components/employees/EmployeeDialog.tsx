@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -25,6 +26,9 @@ import {
   SalaryType
 } from '@/lib/nepal-hr-calculations';
 import { EmployeeDocumentUpload } from './EmployeeDocumentUpload';
+import { UserSelect } from './UserSelect';
+import { useEmployees } from '@/hooks/useEmployees';
+import { UserPlus, Check, X } from 'lucide-react';
 
 interface EmployeeDialogProps {
   open: boolean;
@@ -41,6 +45,15 @@ export function EmployeeDialog({
   onSave,
   isLoading,
 }: EmployeeDialogProps) {
+  const { employees } = useEmployees();
+  
+  // Get user IDs already linked to other employees (exclude current employee if editing)
+  const linkedUserIds = useMemo(() => {
+    return employees
+      .filter(e => e.user_id && e.id !== employee?.id)
+      .map(e => e.user_id);
+  }, [employees, employee?.id]);
+
   const [formData, setFormData] = useState<CreateEmployeeData>({
     full_name: '',
     date_of_birth: '',
@@ -61,6 +74,7 @@ export function EmployeeDialog({
     salary_type: 'monthly',
     hourly_rate: 0,
     estimated_tasks_per_month: 0,
+    linked_user_id: null,
   });
 
   useEffect(() => {
@@ -85,6 +99,7 @@ export function EmployeeDialog({
         salary_type: employee.salary_type || getSalaryTypeForEmployment(employee.employment_type),
         hourly_rate: employee.hourly_rate || 0,
         estimated_tasks_per_month: employee.estimated_tasks_per_month || 0,
+        linked_user_id: employee.user_id || null,
       });
     } else {
       setFormData({
@@ -107,6 +122,7 @@ export function EmployeeDialog({
         salary_type: 'monthly',
         hourly_rate: 0,
         estimated_tasks_per_month: 0,
+        linked_user_id: null,
       });
     }
   }, [employee, open]);
@@ -168,10 +184,11 @@ export function EmployeeDialog({
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <Tabs defaultValue="personal" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="personal">Personal</TabsTrigger>
               <TabsTrigger value="employment">Employment</TabsTrigger>
               <TabsTrigger value="financial">Financial</TabsTrigger>
+              <TabsTrigger value="account">Account</TabsTrigger>
             </TabsList>
 
             <TabsContent value="personal" className="space-y-4 mt-4">
@@ -488,6 +505,56 @@ export function EmployeeDialog({
                   }
                 </p>
               </div>
+            </TabsContent>
+
+            <TabsContent value="account" className="space-y-4 mt-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <UserPlus className="h-5 w-5 text-primary" />
+                      <Label className="text-base font-medium">Link User Account (Optional)</Label>
+                    </div>
+                    
+                    <p className="text-sm text-muted-foreground">
+                      Link this employee to an existing user account to enable self-service access.
+                    </p>
+
+                    <UserSelect
+                      value={formData.linked_user_id}
+                      onValueChange={(userId) => updateField('linked_user_id', userId)}
+                      excludeIds={linkedUserIds}
+                      placeholder="Search user by email..."
+                    />
+
+                    {formData.linked_user_id && (
+                      <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 space-y-2">
+                        <div className="flex items-center gap-2 text-green-600">
+                          <Check className="h-4 w-4" />
+                          <span className="font-medium">User account linked</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          When linked, this user can:
+                        </p>
+                        <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                          <li>View their own employee profile</li>
+                          <li>Apply for leaves via Employee Portal</li>
+                          <li>View their payslips and attendance</li>
+                        </ul>
+                      </div>
+                    )}
+
+                    {!formData.linked_user_id && (
+                      <div className="bg-muted/50 rounded-lg p-4">
+                        <p className="text-sm text-muted-foreground">
+                          <strong>Note:</strong> You can only link to existing team members. 
+                          If the employee doesn't have an account yet, invite them first from the User Management page.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
 

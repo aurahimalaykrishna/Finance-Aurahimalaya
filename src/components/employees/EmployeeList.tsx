@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import {
   Table,
@@ -24,9 +24,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Employee } from '@/hooks/useEmployees';
+import { useTeamUsers } from '@/hooks/useTeamUsers';
 import { EMPLOYMENT_TYPES, isOnProbation } from '@/lib/nepal-hr-calculations';
-import { MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Search, Eye } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, UserX, UserCheck, Search, Eye, Link2, Link2Off } from 'lucide-react';
 
 interface EmployeeListProps {
   employees: Employee[];
@@ -48,6 +54,19 @@ export function EmployeeList({
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  
+  const { users } = useTeamUsers();
+  
+  // Create a map of user_id to email for quick lookup
+  const userEmailMap = useMemo(() => {
+    const map = new Map<string, string>();
+    users.forEach(user => {
+      if (user.email) {
+        map.set(user.id, user.email);
+      }
+    });
+    return map;
+  }, [users]);
 
   const filteredEmployees = employees.filter(employee => {
     const matchesSearch = 
@@ -119,6 +138,7 @@ export function EmployeeList({
           <TableHeader>
             <TableRow>
               <TableHead>Employee</TableHead>
+              <TableHead>Linked Account</TableHead>
               <TableHead>Department</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Join Date</TableHead>
@@ -130,12 +150,15 @@ export function EmployeeList({
           <TableBody>
             {filteredEmployees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No employees found
                 </TableCell>
               </TableRow>
             ) : (
-              filteredEmployees.map((employee) => (
+              filteredEmployees.map((employee) => {
+                const linkedEmail = userEmailMap.get(employee.user_id);
+                
+                return (
                 <TableRow key={employee.id}>
                   <TableCell>
                     <div>
@@ -144,6 +167,37 @@ export function EmployeeList({
                         {employee.employee_code || employee.designation || 'No designation'}
                       </div>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {linkedEmail ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1.5 text-sm">
+                            <Link2 className="h-3.5 w-3.5 text-green-500" />
+                            <span className="text-muted-foreground truncate max-w-[150px]">
+                              {linkedEmail}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Linked to: {linkedEmail}</p>
+                          <p className="text-xs text-muted-foreground">User can access Employee Portal</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Link2Off className="h-3.5 w-3.5" />
+                            <span>Not linked</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>No user account linked</p>
+                          <p className="text-xs text-muted-foreground">Edit employee to link an account</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </TableCell>
                   <TableCell>{employee.department || '-'}</TableCell>
                   <TableCell>
@@ -213,7 +267,8 @@ export function EmployeeList({
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))
+              );
+              })
             )}
           </TableBody>
         </Table>

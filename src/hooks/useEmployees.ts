@@ -63,6 +63,7 @@ export interface CreateEmployeeData {
   salary_type?: SalaryType;
   hourly_rate?: number;
   estimated_tasks_per_month?: number;
+  linked_user_id?: string | null;
 }
 
 export function useEmployees() {
@@ -120,11 +121,14 @@ export function useEmployees() {
         basicSalary = calculateMonthlyFromTask(hourlyRate, estimatedTasksPerMonth);
       }
 
+      // Use linked_user_id if provided, otherwise use current user id
+      const employeeUserId = data.linked_user_id || user.id;
+
       const { data: newEmployee, error } = await supabase
         .from('employees')
         .insert({
           company_id: selectedCompanyId,
-          user_id: user.id,
+          user_id: employeeUserId,
           full_name: data.full_name,
           date_of_birth: data.date_of_birth,
           gender: data.gender,
@@ -202,6 +206,14 @@ export function useEmployees() {
 
       // Remove probation_months as it's not a column
       delete updateData.probation_months;
+
+      // Handle linked_user_id - map it to user_id column
+      if ('linked_user_id' in updateData) {
+        if (updateData.linked_user_id) {
+          updateData.user_id = updateData.linked_user_id;
+        }
+        delete updateData.linked_user_id;
+      }
 
       const { data: updated, error } = await supabase
         .from('employees')
