@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTransactions, CreateTransactionData, Transaction } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
 import { useCompanyContext } from '@/contexts/CompanyContext';
+import { useProfile } from '@/hooks/useProfile';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,8 +31,12 @@ import { exportToCSV, exportToExcel } from '@/utils/exportUtils';
 
 export default function Transactions() {
   const { selectedCompanyId, selectedCompany, companies, isAllCompanies } = useCompanyContext();
+  const { profile } = useProfile();
   const { transactions, isLoading, createTransaction, updateTransaction, deleteTransaction, createBulkTransactions, bulkDeleteTransactions, bulkUpdateTransactions, checkDuplicates } = useTransactions(selectedCompanyId);
   const { categories, getCategoryDisplayName } = useCategories(selectedCompanyId);
+  
+  // Get currency based on selected company or profile default
+  const defaultCurrency = selectedCompany?.currency || profile?.currency || 'NPR';
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -56,7 +61,7 @@ export default function Transactions() {
     category_id: null,
     company_id: selectedCompanyId,
     supplier_id: null,
-    currency: selectedCompany?.currency || 'NPR',
+    currency: defaultCurrency,
   }));
 
   // Update form currency when selected company changes
@@ -66,7 +71,7 @@ export default function Transactions() {
       ...prev, 
       company_id: companyId,
       supplier_id: null, // Reset supplier when company changes
-      currency: company?.currency || 'NPR',
+      currency: company?.currency || defaultCurrency,
     }));
   };
 
@@ -76,7 +81,7 @@ export default function Transactions() {
       setFormData(prev => ({
         ...prev,
         company_id: selectedCompanyId,
-        currency: selectedCompany.currency || 'NPR',
+        currency: selectedCompany.currency || defaultCurrency,
       }));
     }
   }, [selectedCompanyId, selectedCompany]);
@@ -241,7 +246,7 @@ export default function Transactions() {
       category_id: null,
       company_id: selectedCompanyId,
       supplier_id: null,
-      currency: selectedCompany?.currency || 'NPR',
+      currency: defaultCurrency,
     });
   };
 
@@ -300,9 +305,9 @@ export default function Transactions() {
     }
     if (transaction.companies) {
       const company = companies.find(c => c.id === transaction.company_id);
-      return getCurrencySymbol(company?.currency || 'NPR');
+      return getCurrencySymbol(company?.currency || defaultCurrency);
     }
-    return getCurrencySymbol(selectedCompany?.currency || 'NPR');
+    return getCurrencySymbol(defaultCurrency);
   };
 
   // Get display name for transaction category
@@ -488,7 +493,7 @@ export default function Transactions() {
             <div className="mt-2">
               <div className="text-2xl font-bold">{categoryStats.total}</div>
               <p className="text-sm text-muted-foreground">
-                {getCurrencySymbol(selectedCompany?.currency || 'NPR')}{categoryStats.totalAmount.toLocaleString()}
+                {getCurrencySymbol(defaultCurrency)}{categoryStats.totalAmount.toLocaleString()}
               </p>
             </div>
           </CardContent>
@@ -512,7 +517,7 @@ export default function Transactions() {
                 <span className="text-sm text-muted-foreground">({categoryStats.categorizedPercentage}%)</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                {getCurrencySymbol(selectedCompany?.currency || 'NPR')}{categoryStats.categorizedAmount.toLocaleString()}
+                {getCurrencySymbol(defaultCurrency)}{categoryStats.categorizedAmount.toLocaleString()}
               </p>
             </div>
           </CardContent>
@@ -537,7 +542,7 @@ export default function Transactions() {
                 <span className="text-sm text-muted-foreground">({categoryStats.uncategorizedPercentage}%)</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                {getCurrencySymbol(selectedCompany?.currency || 'NPR')}{categoryStats.uncategorizedAmount.toLocaleString()}
+                {getCurrencySymbol(defaultCurrency)}{categoryStats.uncategorizedAmount.toLocaleString()}
               </p>
             </div>
           </CardContent>
@@ -569,7 +574,7 @@ export default function Transactions() {
         categories={categories}
         onSave={handleEditSave}
         isPending={updateTransaction.isPending}
-        defaultCurrency={selectedCompany?.currency || 'NPR'}
+        defaultCurrency={defaultCurrency}
         companyId={editingTransaction?.company_id || selectedCompanyId}
       />
 
