@@ -9,6 +9,7 @@ import {
   getSalaryTypeForEmployment,
   calculateMonthlyFromDaily,
   calculateMonthlyFromHourly,
+  calculateMonthlyFromTask,
   SalaryType,
   EmploymentType
 } from '@/lib/nepal-hr-calculations';
@@ -35,6 +36,7 @@ export interface Employee {
   dearness_allowance: number;
   salary_type: SalaryType;
   hourly_rate: number;
+  estimated_tasks_per_month: number;
   is_active: boolean;
   termination_date: string | null;
   created_at: string;
@@ -60,6 +62,7 @@ export interface CreateEmployeeData {
   dearness_allowance?: number;
   salary_type?: SalaryType;
   hourly_rate?: number;
+  estimated_tasks_per_month?: number;
 }
 
 export function useEmployees() {
@@ -107,11 +110,14 @@ export function useEmployees() {
       // Calculate monthly equivalent based on salary type
       let basicSalary = data.basic_salary;
       const hourlyRate = data.hourly_rate ?? 0;
+      const estimatedTasksPerMonth = data.estimated_tasks_per_month ?? 0;
       
       if (salaryType === 'daily' && hourlyRate > 0) {
         basicSalary = calculateMonthlyFromDaily(hourlyRate);
       } else if (salaryType === 'hourly' && hourlyRate > 0) {
         basicSalary = calculateMonthlyFromHourly(hourlyRate);
+      } else if (salaryType === 'per_task' && hourlyRate > 0) {
+        basicSalary = calculateMonthlyFromTask(hourlyRate, estimatedTasksPerMonth);
       }
 
       const { data: newEmployee, error } = await supabase
@@ -137,6 +143,7 @@ export function useEmployees() {
           dearness_allowance: data.dearness_allowance ?? 0,
           salary_type: salaryType,
           hourly_rate: hourlyRate,
+          estimated_tasks_per_month: estimatedTasksPerMonth,
         })
         .select()
         .single();
@@ -171,20 +178,24 @@ export function useEmployees() {
       }
 
       // Handle salary type and rate calculations
-      if (data.employment_type || data.salary_type || data.hourly_rate !== undefined) {
+      if (data.employment_type || data.salary_type || data.hourly_rate !== undefined || data.estimated_tasks_per_month !== undefined) {
         const employmentType = data.employment_type || existingEmployee?.employment_type || 'regular';
         const salaryType = data.salary_type ?? getSalaryTypeForEmployment(employmentType as EmploymentType);
         const hourlyRate = data.hourly_rate ?? existingEmployee?.hourly_rate ?? 0;
+        const estimatedTasksPerMonth = data.estimated_tasks_per_month ?? existingEmployee?.estimated_tasks_per_month ?? 0;
         
         updateData.salary_type = salaryType;
         updateData.hourly_rate = hourlyRate;
+        updateData.estimated_tasks_per_month = estimatedTasksPerMonth;
         
-        // Calculate monthly equivalent if hourly_rate is provided
+        // Calculate monthly equivalent based on rate
         if (hourlyRate > 0) {
           if (salaryType === 'daily') {
             updateData.basic_salary = calculateMonthlyFromDaily(hourlyRate);
           } else if (salaryType === 'hourly') {
             updateData.basic_salary = calculateMonthlyFromHourly(hourlyRate);
+          } else if (salaryType === 'per_task') {
+            updateData.basic_salary = calculateMonthlyFromTask(hourlyRate, estimatedTasksPerMonth);
           }
         }
       }

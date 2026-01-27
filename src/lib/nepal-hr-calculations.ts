@@ -197,6 +197,7 @@ export const EMPLOYMENT_TYPES = [
   { value: 'time_bound', label: 'Time-bound' },
   { value: 'casual', label: 'Casual' },
   { value: 'part_time', label: 'Part-time' },
+  { value: 'task_based', label: 'Task-based' },
 ] as const;
 
 // Salary types
@@ -204,10 +205,11 @@ export const SALARY_TYPES = [
   { value: 'monthly', label: 'Monthly' },
   { value: 'daily', label: 'Daily' },
   { value: 'hourly', label: 'Hourly' },
+  { value: 'per_task', label: 'Per Task' },
 ] as const;
 
-export type SalaryType = 'monthly' | 'daily' | 'hourly';
-export type EmploymentType = 'regular' | 'work_based' | 'time_bound' | 'casual' | 'part_time';
+export type SalaryType = 'monthly' | 'daily' | 'hourly' | 'per_task';
+export type EmploymentType = 'regular' | 'work_based' | 'time_bound' | 'casual' | 'part_time' | 'task_based';
 
 // Mapping from employment type to salary type
 export const EMPLOYMENT_TO_SALARY_MAP: Record<EmploymentType, SalaryType> = {
@@ -216,6 +218,7 @@ export const EMPLOYMENT_TO_SALARY_MAP: Record<EmploymentType, SalaryType> = {
   work_based: 'daily',
   casual: 'hourly',
   part_time: 'hourly',
+  task_based: 'per_task',
 };
 
 // Get salary type for employment type
@@ -248,6 +251,11 @@ export function calculateRateFromMonthly(monthlySalary: number, salaryType: Sala
 // Get salary type label
 export function getSalaryTypeLabel(salaryType: SalaryType): string {
   return SALARY_TYPES.find(t => t.value === salaryType)?.label || 'Monthly';
+}
+
+// Calculate monthly equivalent from task rate (rate x tasks per month)
+export function calculateMonthlyFromTask(taskRate: number, tasksPerMonth: number): number {
+  return Math.round(taskRate * tasksPerMonth * 100) / 100;
 }
 
 // Leave types
