@@ -3,12 +3,14 @@ import { format, differenceInMonths, differenceInYears } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Employee } from '@/hooks/useEmployees';
 import { useEmployeeLeaves } from '@/hooks/useEmployeeLeaves';
 import { useTeamUsers } from '@/hooks/useTeamUsers';
 import { LeaveBalanceCard } from './LeaveBalanceCard';
+import { ManageLeaveBalanceDialog } from './ManageLeaveBalanceDialog';
 import { AttendancePanel } from './AttendancePanel';
 import { AttendanceCalendar } from './AttendanceCalendar';
 import { AttendanceDialog } from './AttendanceDialog';
@@ -31,6 +33,7 @@ import {
   Link2,
   Link2Off,
   Mail,
+  Settings,
 } from 'lucide-react';
 
 interface EmployeeProfileProps {
@@ -51,6 +54,7 @@ export function EmployeeProfile({
     date: Date;
     record?: AttendanceLog;
   }>({ open: false, date: new Date() });
+  const [manageLeaveBalanceOpen, setManageLeaveBalanceOpen] = useState(false);
 
   // Get linked user email
   const linkedUserEmail = useMemo(() => {
@@ -416,13 +420,25 @@ export function EmployeeProfile({
             />
           </TabsContent>
 
-          <TabsContent value="leaves" className="mt-4">
+          <TabsContent value="leaves" className="mt-4 space-y-4">
             {availableLeave ? (
-              <LeaveBalanceCard 
-                fiscalYear={fiscalYear} 
-                availableLeave={availableLeave}
-                gender={employee.gender}
-              />
+              <>
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setManageLeaveBalanceOpen(true)}
+                  >
+                    <Settings className="h-4 w-4 mr-2" />
+                    Manage Balance
+                  </Button>
+                </div>
+                <LeaveBalanceCard 
+                  fiscalYear={fiscalYear} 
+                  availableLeave={availableLeave}
+                  gender={employee.gender}
+                />
+              </>
             ) : (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
@@ -442,6 +458,17 @@ export function EmployeeProfile({
           employeeName={employee.full_name}
           date={attendanceDialogState.date}
           existingRecord={attendanceDialogState.record}
+        />
+
+        {/* Manage Leave Balance Dialog */}
+        <ManageLeaveBalanceDialog
+          open={manageLeaveBalanceOpen}
+          onOpenChange={setManageLeaveBalanceOpen}
+          employeeId={employee.id}
+          employeeName={employee.full_name}
+          gender={employee.gender}
+          fiscalYear={fiscalYear}
+          leaveBalance={leaveBalance}
         />
       </DialogContent>
     </Dialog>

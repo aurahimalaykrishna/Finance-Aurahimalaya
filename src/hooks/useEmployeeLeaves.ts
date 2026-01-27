@@ -311,6 +311,42 @@ export function useEmployeeLeaves(employeeId?: string) {
     };
   };
 
+  // Update leave balance (admin only)
+  const updateLeaveBalance = useMutation({
+    mutationFn: async ({ 
+      balanceId, 
+      data 
+    }: { 
+      balanceId: string;
+      data: {
+        home_leave_accrued?: number;
+        home_leave_used?: number;
+        home_leave_carried_forward?: number;
+        sick_leave_accrued?: number;
+        sick_leave_used?: number;
+        sick_leave_carried_forward?: number;
+        maternity_leave_used?: number;
+        paternity_leave_used?: number;
+        mourning_leave_used?: number;
+        public_holidays_used?: number;
+      };
+    }) => {
+      const { error } = await supabase
+        .from('employee_leave_balances')
+        .update(data)
+        .eq('id', balanceId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee-leave-balance'] });
+      toast({ title: 'Leave balance updated successfully' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error updating leave balance', description: error.message, variant: 'destructive' });
+    },
+  });
+
   return {
     leaveBalance,
     leaveRequests,
@@ -319,6 +355,7 @@ export function useEmployeeLeaves(employeeId?: string) {
     initializeLeaveBalance,
     createLeaveRequest,
     updateLeaveRequestStatus,
+    updateLeaveBalance,
     calculateAvailableLeave,
   };
 }
