@@ -452,6 +452,80 @@ export type Database = {
           },
         ]
       }
+      company_leave_types: {
+        Row: {
+          accrual_per_days: number | null
+          accrual_rate: number | null
+          accrual_type: string
+          annual_entitlement: number
+          code: string
+          color: string | null
+          company_id: string
+          created_at: string | null
+          display_order: number | null
+          gender_restriction: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          is_paid: boolean | null
+          max_accrual: number | null
+          max_carry_forward: number | null
+          name: string
+          requires_approval: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          accrual_per_days?: number | null
+          accrual_rate?: number | null
+          accrual_type?: string
+          annual_entitlement?: number
+          code: string
+          color?: string | null
+          company_id: string
+          created_at?: string | null
+          display_order?: number | null
+          gender_restriction?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_paid?: boolean | null
+          max_accrual?: number | null
+          max_carry_forward?: number | null
+          name: string
+          requires_approval?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          accrual_per_days?: number | null
+          accrual_rate?: number | null
+          accrual_type?: string
+          annual_entitlement?: number
+          code?: string
+          color?: string | null
+          company_id?: string
+          created_at?: string | null
+          display_order?: number | null
+          gender_restriction?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_paid?: boolean | null
+          max_accrual?: number | null
+          max_carry_forward?: number | null
+          name?: string
+          requires_approval?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_leave_types_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
