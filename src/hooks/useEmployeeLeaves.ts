@@ -11,6 +11,7 @@ import {
   MOURNING_LEAVE_DAYS,
   MATERNITY_PAID_DAYS,
 } from '@/lib/nepal-hr-calculations';
+import { CompanyLeaveType } from '@/hooks/useCompanyLeaveTypes';
 import { differenceInMonths, differenceInDays, eachDayOfInterval, format } from 'date-fns';
 
 export interface LeaveBalance {
@@ -271,9 +272,19 @@ export function useEmployeeLeaves(employeeId?: string) {
     },
   });
 
-  // Calculate available leave
-  const calculateAvailableLeave = (balance: LeaveBalance | null, gender: string) => {
+  // Calculate available leave with dynamic company leave types
+  const calculateAvailableLeave = (
+    balance: LeaveBalance | null, 
+    gender: string,
+    companyLeaveTypes?: CompanyLeaveType[]
+  ) => {
     if (!balance) return null;
+
+    // Helper to get entitlement from company config or fallback to default
+    const getEntitlement = (code: string, defaultValue: number) => {
+      const lt = companyLeaveTypes?.find(t => t.code === code && t.is_active);
+      return lt ? Number(lt.annual_entitlement) : defaultValue;
+    };
 
     return {
       homeLeave: {
@@ -289,19 +300,19 @@ export function useEmployeeLeaves(employeeId?: string) {
         available: balance.sick_leave_accrued + balance.sick_leave_carried_forward - balance.sick_leave_used,
       },
       maternityLeave: {
-        entitled: gender === 'female' ? MATERNITY_PAID_DAYS : 0,
+        entitled: gender === 'female' ? getEntitlement('maternity', MATERNITY_PAID_DAYS) : 0,
         used: balance.maternity_leave_used,
-        available: gender === 'female' ? MATERNITY_PAID_DAYS - balance.maternity_leave_used : 0,
+        available: gender === 'female' ? getEntitlement('maternity', MATERNITY_PAID_DAYS) - balance.maternity_leave_used : 0,
       },
       paternityLeave: {
-        entitled: gender === 'male' ? PATERNITY_LEAVE_DAYS : 0,
+        entitled: gender === 'male' ? getEntitlement('paternity', PATERNITY_LEAVE_DAYS) : 0,
         used: balance.paternity_leave_used,
-        available: gender === 'male' ? PATERNITY_LEAVE_DAYS - balance.paternity_leave_used : 0,
+        available: gender === 'male' ? getEntitlement('paternity', PATERNITY_LEAVE_DAYS) - balance.paternity_leave_used : 0,
       },
       mourningLeave: {
-        entitled: MOURNING_LEAVE_DAYS,
+        entitled: getEntitlement('mourning', MOURNING_LEAVE_DAYS),
         used: balance.mourning_leave_used,
-        available: MOURNING_LEAVE_DAYS - balance.mourning_leave_used,
+        available: getEntitlement('mourning', MOURNING_LEAVE_DAYS) - balance.mourning_leave_used,
       },
       publicHolidays: {
         entitled: getPublicHolidayEntitlement(gender),

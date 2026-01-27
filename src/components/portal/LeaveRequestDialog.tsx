@@ -27,6 +27,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useEmployeeLeaves } from '@/hooks/useEmployeeLeaves';
 import { useCompanyHolidays } from '@/hooks/useCompanyHolidays';
+import { CompanyLeaveType } from '@/hooks/useCompanyLeaveTypes';
 import { MyEmployee } from '@/hooks/useMyEmployee';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, Loader2, AlertTriangle } from 'lucide-react';
@@ -37,9 +38,22 @@ interface LeaveRequestDialogProps {
   employee: MyEmployee;
   availableLeave: ReturnType<ReturnType<typeof useEmployeeLeaves>['calculateAvailableLeave']>;
   companyId?: string;
+  leaveTypes?: CompanyLeaveType[];
 }
 
-type LeaveType = 'home' | 'sick' | 'maternity' | 'paternity' | 'mourning';
+// Helper to get available balance for a leave type code
+const getAvailableForType = (code: string, availableLeave: LeaveRequestDialogProps['availableLeave']) => {
+  if (!availableLeave) return 0;
+  const mapping: Record<string, number> = {
+    home: availableLeave.homeLeave?.available || 0,
+    sick: availableLeave.sickLeave?.available || 0,
+    maternity: availableLeave.maternityLeave?.available || 0,
+    paternity: availableLeave.paternityLeave?.available || 0,
+    mourning: availableLeave.mourningLeave?.available || 0,
+    public_holiday: availableLeave.publicHolidays?.available || 0,
+  };
+  return mapping[code] || 0;
+};
 
 export function LeaveRequestDialog({
   open,
@@ -47,8 +61,9 @@ export function LeaveRequestDialog({
   employee,
   availableLeave,
   companyId,
+  leaveTypes: companyLeaveTypes,
 }: LeaveRequestDialogProps) {
-  const [leaveType, setLeaveType] = useState<LeaveType>('home');
+  const [leaveType, setLeaveType] = useState<string>('home');
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [reason, setReason] = useState('');
@@ -56,23 +71,38 @@ export function LeaveRequestDialog({
   const { createLeaveRequest } = useEmployeeLeaves(employee.id);
   const { holidays } = useCompanyHolidays(companyId);
 
-  const leaveTypes: { value: LeaveType; label: string; available: number }[] = [
-    { value: 'home', label: 'Home Leave', available: availableLeave?.homeLeave.available || 0 },
-    { value: 'sick', label: 'Sick Leave', available: availableLeave?.sickLeave.available || 0 },
-    ...(employee.gender === 'female' ? [
-      { value: 'maternity' as LeaveType, label: 'Maternity Leave', available: availableLeave?.maternityLeave.available || 0 },
-    ] : []),
-    ...(employee.gender === 'male' ? [
-      { value: 'paternity' as LeaveType, label: 'Paternity Leave', available: availableLeave?.paternityLeave.available || 0 },
-    ] : []),
-    { value: 'mourning', label: 'Mourning Leave', available: availableLeave?.mourningLeave.available || 0 },
-  ];
+  // Build leave options from company configuration or fallback to defaults
+  const leaveOptions = useMemo(() => {
+    if (companyLeaveTypes && companyLeaveTypes.length > 0) {
+      return companyLeaveTypes
+        .filter(lt => lt.is_active)
+        .filter(lt => !lt.gender_restriction || lt.gender_restriction === employee.gender)
+        .map(lt => ({
+          value: lt.code,
+          label: lt.name,
+          available: getAvailableForType(lt.code, availableLeave),
+        }));
+    }
+    
+    // Fallback to hardcoded defaults
+    return [
+      { value: 'home', label: 'Home Leave', available: availableLeave?.homeLeave.available || 0 },
+      { value: 'sick', label: 'Sick Leave', available: availableLeave?.sickLeave.available || 0 },
+      ...(employee.gender === 'female' ? [
+        { value: 'maternity', label: 'Maternity Leave', available: availableLeave?.maternityLeave.available || 0 },
+      ] : []),
+      ...(employee.gender === 'male' ? [
+        { value: 'paternity', label: 'Paternity Leave', available: availableLeave?.paternityLeave.available || 0 },
+      ] : []),
+      { value: 'mourning', label: 'Mourning Leave', available: availableLeave?.mourningLeave.available || 0 },
+    ];
+  }, [companyLeaveTypes, employee.gender, availableLeave]);
 
   const daysRequested = startDate && endDate 
     ? differenceInDays(endDate, startDate) + 1 
     : 0;
 
-  const selectedLeaveType = leaveTypes.find(t => t.value === leaveType);
+  const selectedLeaveType = leaveOptions.find(t => t.value === leaveType);
   const hasInsufficientBalance = selectedLeaveType && daysRequested > selectedLeaveType.available;
 
   // Check for holiday overlaps
@@ -89,7 +119,7 @@ export function LeaveRequestDialog({
 
     createLeaveRequest.mutate({
       employee_id: employee.id,
-      leave_type: leaveType,
+      leave_type: leaveType as 'home' | 'sick' | 'maternity' | 'paternity' | 'mourning' | 'public_holiday',
       start_date: format(startDate, 'yyyy-MM-dd'),
       end_date: format(endDate, 'yyyy-MM-dd'),
       reason: reason.trim() || undefined,
@@ -120,12 +150,12 @@ export function LeaveRequestDialog({
           {/* Leave Type */}
           <div className="space-y-2">
             <Label>Leave Type</Label>
-            <Select value={leaveType} onValueChange={(v) => setLeaveType(v as LeaveType)}>
+            <Select value={leaveType} onValueChange={(v) => setLeaveType(v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select leave type" />
               </SelectTrigger>
               <SelectContent>
-                {leaveTypes.map((type) => (
+                {leaveOptions.map((type) => (
                   <SelectItem key={type.value} value={type.value}>
                     {type.label} ({type.available} days available)
                   </SelectItem>
