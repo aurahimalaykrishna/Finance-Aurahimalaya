@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -129,8 +130,8 @@ export function useAttendance(employeeId?: string) {
     enabled: !!employeeId && !!user,
   });
 
-  // Get monthly attendance for an employee
-  const getMonthlyAttendance = async (empId: string, month: number, year: number): Promise<AttendanceLog[]> => {
+  // Get monthly attendance for an employee (memoized to prevent infinite re-renders)
+  const getMonthlyAttendance = useCallback(async (empId: string, month: number, year: number): Promise<AttendanceLog[]> => {
     const startDate = startOfMonth(new Date(year, month - 1));
     const endDate = endOfMonth(new Date(year, month - 1));
     
@@ -144,10 +145,10 @@ export function useAttendance(employeeId?: string) {
 
     if (error) throw error;
     return data as AttendanceLog[];
-  };
+  }, []);
 
-  // Get attendance for all employees on a specific date
-  const getCompanyAttendanceByDate = async (companyId: string, date: string): Promise<AttendanceLog[]> => {
+  // Get attendance for all employees on a specific date (memoized to prevent infinite re-renders)
+  const getCompanyAttendanceByDate = useCallback(async (companyId: string, date: string): Promise<AttendanceLog[]> => {
     const { data, error } = await supabase
       .from('attendance_logs')
       .select(`
@@ -159,7 +160,7 @@ export function useAttendance(employeeId?: string) {
 
     if (error) throw error;
     return data as unknown as AttendanceLog[];
-  };
+  }, []);
 
   // Check-in mutation
   const checkIn = useMutation({

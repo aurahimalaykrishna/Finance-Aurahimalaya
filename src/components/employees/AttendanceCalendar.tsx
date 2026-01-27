@@ -32,6 +32,8 @@ export function AttendanceCalendar({ employeeId, onDayClick }: AttendanceCalenda
 
   useEffect(() => {
     const fetchMonthlyData = async () => {
+      if (!employeeId) return;
+      
       setLoading(true);
       try {
         const month = currentMonth.getMonth() + 1;
@@ -46,9 +48,7 @@ export function AttendanceCalendar({ employeeId, onDayClick }: AttendanceCalenda
       }
     };
 
-    if (employeeId) {
-      fetchMonthlyData();
-    }
+    fetchMonthlyData();
   }, [employeeId, currentMonth, getMonthlyAttendance]);
 
   const monthStart = startOfMonth(currentMonth);
