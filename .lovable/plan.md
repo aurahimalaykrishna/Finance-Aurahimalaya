@@ -1,298 +1,215 @@
 
-# Plan: Employee Self-Service Portal
+# Plan: Add Multiple Roles (Manager, HR Manager, Supervisor)
 
 ## Overview
-Create a dedicated Employee Portal that allows employees (users with the 'employee' role) to access their personal work information including attendance tracking, leave applications, payroll/payslips, and company holidays - all from a single, streamlined interface.
+Add three new roles to the existing role system: **Manager**, **HR Manager**, and **Supervisor**. Each role has distinct permissions tailored to their responsibilities. Additionally, fix the existing **Employee** role to work correctly in all areas.
 
-## Current State Analysis
+## Role Hierarchy and Permissions
 
-### What Already Exists
-| Feature | Status | Location |
-|---------|--------|----------|
-| Employee role & permissions | Implemented | `useUserRoles.ts`, `PermissionContext.tsx` |
-| Attendance check-in/out | Implemented | `AttendancePanel.tsx`, `useAttendance.ts` |
-| Attendance calendar | Implemented | `AttendanceCalendar.tsx` |
-| Leave balances | Implemented | `LeaveBalanceCard.tsx`, `useEmployeeLeaves.ts` |
-| Leave request creation | Implemented | `useEmployeeLeaves.ts` |
-| Payslips table | Exists | `employee_payslips` table with RLS |
-| Holiday marking (admin) | Implemented | `AttendanceManagement.tsx` |
+| Role | Priority | Description | Permissions |
+|------|----------|-------------|-------------|
+| Owner | 1 | Full account control | All permissions |
+| Admin | 2 | Full access except user management | manage_settings, manage_companies, edit_data, view_data, delete_data, manage_payroll, approve_leave |
+| HR Manager | 3 | Full HR access | manage_employees, manage_payroll, approve_leave, view_data, edit_data, view_own_data, apply_leave |
+| Manager | 4 | Team management | approve_leave, view_team_data, view_data, view_own_data, apply_leave |
+| Supervisor | 5 | Limited team management | approve_leave, view_team_data, view_own_data, apply_leave |
+| Accountant | 6 | Financial data entry | edit_data, view_data, view_own_data, apply_leave |
+| Viewer | 7 | Read-only access | view_data, view_own_data |
+| Employee | 8 | Self-service only | view_own_data, apply_leave |
 
-### What Needs to Be Built
-| Feature | Description |
-|---------|-------------|
-| Employee Portal Page | New `/portal` route for employee self-service |
-| My Payslips view | Component to display employee's own payslips |
-| Leave Request Form | UI to submit new leave applications |
-| Company Holidays List | Display upcoming and past company holidays |
-| Role-based Navigation | Show Portal link only for employees, hide admin features |
-| RLS for Employee Payslip Access | Allow employees to view their own payslips |
-
-## System Architecture
+### Role Capabilities Summary
 
 ```text
-+------------------+     +-------------------+     +-----------------+
-|  Employee Portal |---->|   useMyEmployee   |---->|   employees     |
-|  (New Page)      |     |   (New Hook)      |     |   (Database)    |
-+------------------+     +-------------------+     +-----------------+
-        |                         |
-        v                         v
-+------------------+     +-------------------+     +-----------------+
-| Attendance Panel |     | useEmployeeLeaves |---->| leave_requests  |
-| (Existing)       |     | (Existing)        |     | (Database)      |
-+------------------+     +-------------------+     +-----------------+
-        |
-        v
-+------------------+     +-------------------+     +-----------------+
-| PayslipViewer    |---->|  useMyPayslips    |---->| employee_payslips|
-| (New Component)  |     |  (New Hook)       |     | (Database)       |
-+------------------+     +-------------------+     +-----------------+
-        |
-        v
-+------------------+     +-------------------+     +-----------------+
-| HolidaysList     |---->| useCompanyHolidays|---->| company_holidays |
-| (New Component)  |     | (New Hook)        |     | (New Table)      |
-+------------------+     +-------------------+     +-----------------+
++-------------+---------------+-------------+-------------+-----------+------------+
+|    Role     | Manage Users  | Manage HR   | Approve     | View Team | View All   |
+|             |               |             | Leaves      | Data      | Data       |
++-------------+---------------+-------------+-------------+-----------+------------+
+| Owner       |      Yes      |     Yes     |     Yes     |    Yes    |    Yes     |
+| Admin       |      No       |     Yes     |     Yes     |    Yes    |    Yes     |
+| HR Manager  |      No       |     Yes     |     Yes     |    Yes    |    Yes     |
+| Manager     |      No       |     No      |     Yes     |    Yes    |    Yes     |
+| Supervisor  |      No       |     No      |     Yes     |    Yes    |    No      |
+| Accountant  |      No       |     No      |     No      |    No     |    Yes     |
+| Viewer      |      No       |     No      |     No      |    No     |    Yes     |
+| Employee    |      No       |     No      |     No      |    No     |    No      |
++-------------+---------------+-------------+-------------+-----------+------------+
 ```
-
-## Feature Details
-
-### 1. Employee Portal Page
-A dedicated dashboard for employees with:
-- Welcome header with employee name and current date
-- Quick actions: Check-in/Check-out
-- Today's attendance status
-- Leave balance summary
-- Recent payslips
-- Upcoming holidays
-
-### 2. My Attendance Section
-- Check-in/Check-out buttons (reuses existing `AttendancePanel`)
-- Monthly attendance calendar (reuses existing `AttendanceCalendar`)
-- Monthly summary statistics
-
-### 3. Leave Application Section
-- View current leave balances by type
-- Apply for new leave with:
-  - Leave type selection
-  - Date range picker
-  - Reason input
-- View pending/approved/rejected requests
-
-### 4. Payslip Viewer
-- List of payslips by month
-- View detailed breakdown:
-  - Gross salary, allowances
-  - Deductions (SSF, tax)
-  - Net salary
-- Download/print payslip option (future enhancement)
-
-### 5. Company Holidays Section
-- List of declared public holidays
-- Calendar view showing holidays
-- Filter by upcoming/past
 
 ## Database Changes
 
-### New Table: `company_holidays`
-Stores company-wide declared holidays for display to employees.
+### 1. Add New Enum Values
+Add `manager`, `hr_manager`, and `supervisor` to the `app_role` enum:
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key |
-| company_id | uuid | Foreign key to companies |
-| name | text | Holiday name (e.g., "Dashain") |
-| date | date | Holiday date |
-| description | text | Optional description |
-| created_by | uuid | Who created the record |
-| created_at | timestamptz | Created timestamp |
-
-### RLS Policies for `company_holidays`
-- All company members can view holidays
-- Only admins can create/update/delete
-
-### Update RLS for `employee_payslips`
-Add policy allowing employees to view their own payslips:
 ```sql
-CREATE POLICY "Employees can view own payslips"
-ON public.employee_payslips FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM employees e 
-    WHERE e.id = employee_payslips.employee_id 
-    AND e.user_id = auth.uid()
-  )
-);
+ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'manager';
+ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'hr_manager';
+ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'supervisor';
 ```
 
-## Files to Create
+### 2. Update `get_user_role` Function
+Update the ordering to include all 8 roles:
 
-### New Pages
-| File | Description |
-|------|-------------|
-| `src/pages/EmployeePortal.tsx` | Main portal page with tabs |
+```sql
+CREATE OR REPLACE FUNCTION public.get_user_role(_user_id uuid)
+RETURNS app_role
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT role
+  FROM public.user_roles
+  WHERE user_id = _user_id
+  ORDER BY 
+    CASE role 
+      WHEN 'owner' THEN 1 
+      WHEN 'admin' THEN 2 
+      WHEN 'hr_manager' THEN 3
+      WHEN 'manager' THEN 4
+      WHEN 'supervisor' THEN 5
+      WHEN 'accountant' THEN 6 
+      WHEN 'viewer' THEN 7 
+      WHEN 'employee' THEN 8
+    END
+  LIMIT 1
+$$;
+```
 
-### New Components
-| File | Description |
-|------|-------------|
-| `src/components/portal/PortalDashboard.tsx` | Overview/welcome section |
-| `src/components/portal/PortalAttendance.tsx` | Attendance tab content |
-| `src/components/portal/PortalLeave.tsx` | Leave management tab |
-| `src/components/portal/LeaveRequestDialog.tsx` | Apply for leave modal |
-| `src/components/portal/PortalPayslips.tsx` | Payslip listing & viewer |
-| `src/components/portal/PayslipDetailDialog.tsx` | Detailed payslip view |
-| `src/components/portal/PortalHolidays.tsx` | Holidays list & calendar |
+### 3. Update `get_user_company_role` Function
+Same ordering update for company-specific role resolution.
 
-### New Hooks
-| File | Description |
-|------|-------------|
-| `src/hooks/useMyEmployee.ts` | Get current user's employee record |
-| `src/hooks/useMyPayslips.ts` | Get current employee's payslips |
-| `src/hooks/useCompanyHolidays.ts` | Manage company holidays |
+### 4. Update Helper Functions
+Update `has_any_role` to handle new roles in RLS policies if needed.
 
-## Files to Modify
+## Frontend Changes
+
+### Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/App.tsx` | Add `/portal` route |
-| `src/components/layout/AppSidebar.tsx` | Add "My Portal" link for employees, hide admin features |
-| `src/hooks/useUserRoles.ts` | Add helper to detect if user is an employee |
+| `src/hooks/useUserRoles.ts` | Add new roles to `AppRole` type, update `PERMISSIONS` object |
+| `src/contexts/PermissionContext.tsx` | Update `PERMISSIONS` object, add new permission helpers |
+| `src/components/users/RoleBadge.tsx` | Add icons and labels for new roles |
+| `src/components/users/TeamMemberCard.tsx` | Add new roles to role selector dropdown |
+| `src/components/users/InviteUserDialog.tsx` | Add new roles to invitation form |
+| `src/pages/UserManagement.tsx` | Add role filter options, add role description cards |
 
-## Implementation Details
+### Updated TypeScript Types
 
-### Employee Detection Logic
-```text
-An employee can access the portal if:
-1. They have the 'employee' role in user_roles table
-   OR
-2. Their user_id exists in the employees table with is_active = true
+```typescript
+export type AppRole = 
+  | 'owner' 
+  | 'admin' 
+  | 'hr_manager'
+  | 'manager'
+  | 'supervisor'
+  | 'accountant' 
+  | 'viewer' 
+  | 'employee';
 ```
 
-### Portal Navigation
-```text
-Employee role sees:
-- My Portal (default route)
-- Settings
+### Updated Permissions Object
 
-Admin/Owner roles see:
-- Full navigation (Dashboard, Transactions, etc.)
-- My Portal (if they're also linked as an employee)
+```typescript
+const PERMISSIONS = {
+  owner: ['manage_users', 'manage_settings', 'manage_companies', 'manage_employees', 
+          'manage_payroll', 'approve_leave', 'edit_data', 'view_data', 'view_team_data', 
+          'delete_data', 'view_own_data', 'apply_leave'],
+  admin: ['manage_settings', 'manage_companies', 'manage_employees', 'manage_payroll', 
+          'approve_leave', 'edit_data', 'view_data', 'view_team_data', 'delete_data', 
+          'view_own_data', 'apply_leave'],
+  hr_manager: ['manage_employees', 'manage_payroll', 'approve_leave', 'edit_data', 
+               'view_data', 'view_team_data', 'view_own_data', 'apply_leave'],
+  manager: ['approve_leave', 'view_data', 'view_team_data', 'view_own_data', 'apply_leave'],
+  supervisor: ['approve_leave', 'view_team_data', 'view_own_data', 'apply_leave'],
+  accountant: ['edit_data', 'view_data', 'view_own_data', 'apply_leave'],
+  viewer: ['view_data', 'view_own_data'],
+  employee: ['view_own_data', 'apply_leave'],
+} as const;
 ```
 
-### Leave Request Flow
-```text
-1. Employee selects leave type
-2. Picks start and end dates
-3. Enters reason (optional for some types)
-4. System validates:
-   - Sufficient balance
-   - No overlapping requests
-5. Creates pending request
-6. Admin receives notification (future)
-7. Admin approves/rejects
-8. If approved: attendance records auto-created (already implemented)
+### Role Badge Configuration
+
+```typescript
+const roleConfig: Record<AppRole, { label: string; icon: React.ComponentType; variant: string }> = {
+  owner: { label: 'Owner', icon: Crown, variant: 'default' },
+  admin: { label: 'Admin', icon: Shield, variant: 'secondary' },
+  hr_manager: { label: 'HR Manager', icon: Users, variant: 'secondary' },
+  manager: { label: 'Manager', icon: Briefcase, variant: 'outline' },
+  supervisor: { label: 'Supervisor', icon: UserCheck, variant: 'outline' },
+  accountant: { label: 'Accountant', icon: Calculator, variant: 'outline' },
+  viewer: { label: 'Viewer', icon: Eye, variant: 'outline' },
+  employee: { label: 'Employee', icon: UserCircle, variant: 'outline' },
+};
 ```
 
-### Payslip Access Flow
-```text
-1. Employee opens Payslips tab
-2. Hook queries employee_payslips WHERE employee_id matches
-3. RLS policy validates user_id matches via employees table
-4. Display list of payslips sorted by month
-5. Click to view detailed breakdown
+## New Permission Helpers
+
+Add to `PermissionContext.tsx`:
+
+```typescript
+interface PermissionContextType {
+  // ... existing
+  canManageEmployees: boolean;  // HR Manager, Admin, Owner
+  canManagePayroll: boolean;    // HR Manager, Admin, Owner
+  canApproveLeave: boolean;     // Supervisor+
+  canViewTeamData: boolean;     // Supervisor+
+}
 ```
 
-## User Interface Layout
+## UI Updates
 
-### Portal Dashboard Tab
-```text
-+------------------------------------------+
-| Welcome, [Employee Name]!                 |
-| Today is Monday, January 27, 2026         |
-+------------------------------------------+
-|                                          |
-| +----------------+  +------------------+ |
-| | Today's Status |  | Quick Stats      | |
-| | [Check In]     |  | Home Leave: 12   | |
-| | Not checked in |  | Sick Leave: 8    | |
-| +----------------+  +------------------+ |
-|                                          |
-| +--------------------------------------+ |
-| | Upcoming Holidays                    | |
-| | - Basant Panchami (Jan 29)           | |
-| | - Maha Shivaratri (Feb 26)           | |
-| +--------------------------------------+ |
-+------------------------------------------+
-```
+### Role Selector (TeamMemberCard)
+Update dropdown to include all assignable roles:
+- Admin
+- HR Manager
+- Manager
+- Supervisor
+- Accountant
+- Viewer
+- Employee
 
-### Leave Tab
-```text
-+------------------------------------------+
-| Leave Balances           [Apply Leave]   |
-+------------------------------------------+
-| Home Leave  ████████░░ 12/18 available   |
-| Sick Leave  ██████░░░░ 8/12 available    |
-| ...                                      |
-+------------------------------------------+
-| My Leave Requests                        |
-+------------------------------------------+
-| | Type | Dates | Days | Status |        |
-| | Home | Jan 10-12 | 3 | Approved |     |
-| | Sick | Jan 5 | 1 | Pending |          |
-+------------------------------------------+
-```
+### Invite User Dialog
+Same role options for new invitations.
 
-### Payslips Tab
-```text
-+------------------------------------------+
-| My Payslips                              |
-+------------------------------------------+
-| | Month | Gross | Deductions | Net |    |
-| | Jan 2026 | ₹45,000 | ₹8,500 | ₹36,500 |
-| | Dec 2025 | ₹45,000 | ₹8,500 | ₹36,500 |
-| ...                                      |
-+------------------------------------------+
-```
+### User Management - Role Permissions Tab
+Add cards describing each role:
 
-## Security Considerations
-
-1. **RLS Enforcement**: All database access is protected by RLS policies
-2. **Employee Verification**: Portal only accessible if user has employee record
-3. **Data Isolation**: Employees can only see their own data
-4. **Leave Validation**: Server-side validation of leave balance before approval
-5. **Payslip Protection**: Payslips only visible to the employee or company admins
+| Role | Description |
+|------|-------------|
+| Owner | Full account control including user management |
+| Admin | Full access except user management |
+| HR Manager | Complete HR access: employees, payroll, leave approvals |
+| Manager | Team management: approve leaves, view team data |
+| Supervisor | Limited management: approve leaves for assigned team |
+| Accountant | Financial data entry and management |
+| Viewer | Read-only access to reports and data |
+| Employee | Self-service: apply leaves, view own data |
 
 ## Implementation Order
 
 1. **Database Migration**
-   - Create `company_holidays` table
-   - Add RLS policy for employee payslip access
+   - Add new enum values
+   - Update `get_user_role` function
+   - Update `get_user_company_role` function
 
-2. **Hooks**
-   - `useMyEmployee` - Get current user's employee record
-   - `useMyPayslips` - Get employee's payslips
-   - `useCompanyHolidays` - Holidays management
+2. **Type Updates**
+   - Update `AppRole` type in `useUserRoles.ts`
+   - Update `PERMISSIONS` object
 
-3. **Portal Page & Components**
-   - Main `EmployeePortal.tsx` page
-   - Dashboard, Attendance, Leave, Payslips, Holidays tabs
+3. **Context Updates**
+   - Update `PermissionContext.tsx` with new permissions
+   - Add new permission helper methods
 
-4. **Navigation Updates**
-   - Add portal route to App.tsx
-   - Update sidebar for role-based visibility
+4. **UI Component Updates**
+   - Update `RoleBadge.tsx` with new role configs
+   - Update `TeamMemberCard.tsx` role selector
+   - Update `InviteUserDialog.tsx` role options
+   - Update `UserManagement.tsx` filters and descriptions
 
-5. **Leave Request Dialog**
-   - Form with validation
-   - Integration with existing leave hooks
+## Security Notes
 
----
-
-## Technical Notes
-
-### Holiday Data Structure
-Holidays are stored per-company to allow different organizations to have different holiday calendars. This is important for multi-tenant support.
-
-### Payslip RLS Strategy
-Rather than modifying the existing admin-focused policy, we add a new policy specifically for employee self-access. This follows the additive nature of Postgres RLS policies.
-
-### Mobile Considerations
-The portal should be mobile-friendly since employees may check in from phones. The check-in buttons should be prominent and easy to tap.
+- All role assignments still require `owner` permission (via RLS on `user_roles` table)
+- New roles follow existing RLS patterns
+- Database functions use `SECURITY DEFINER` to prevent RLS recursion
+- Role hierarchy is enforced via ordering in database functions
