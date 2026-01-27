@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { format, differenceInDays } from 'date-fns';
+import { useState, useMemo } from 'react';
+import { format, differenceInDays, isWithinInterval, parseISO } from 'date-fns';
 import {
   Dialog,
   DialogContent,
@@ -24,16 +24,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useEmployeeLeaves } from '@/hooks/useEmployeeLeaves';
+import { useCompanyHolidays } from '@/hooks/useCompanyHolidays';
 import { MyEmployee } from '@/hooks/useMyEmployee';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, Loader2 } from 'lucide-react';
+import { CalendarIcon, Loader2, AlertTriangle } from 'lucide-react';
 
 interface LeaveRequestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   employee: MyEmployee;
   availableLeave: ReturnType<ReturnType<typeof useEmployeeLeaves>['calculateAvailableLeave']>;
+  companyId?: string;
 }
 
 type LeaveType = 'home' | 'sick' | 'maternity' | 'paternity' | 'mourning';
@@ -43,6 +46,7 @@ export function LeaveRequestDialog({
   onOpenChange,
   employee,
   availableLeave,
+  companyId,
 }: LeaveRequestDialogProps) {
   const [leaveType, setLeaveType] = useState<LeaveType>('home');
   const [startDate, setStartDate] = useState<Date>();
@@ -50,6 +54,7 @@ export function LeaveRequestDialog({
   const [reason, setReason] = useState('');
 
   const { createLeaveRequest } = useEmployeeLeaves(employee.id);
+  const { holidays } = useCompanyHolidays(companyId);
 
   const leaveTypes: { value: LeaveType; label: string; available: number }[] = [
     { value: 'home', label: 'Home Leave', available: availableLeave?.homeLeave.available || 0 },
@@ -69,6 +74,15 @@ export function LeaveRequestDialog({
 
   const selectedLeaveType = leaveTypes.find(t => t.value === leaveType);
   const hasInsufficientBalance = selectedLeaveType && daysRequested > selectedLeaveType.available;
+
+  // Check for holiday overlaps
+  const overlappingHolidays = useMemo(() => {
+    if (!startDate || !endDate || holidays.length === 0) return [];
+    return holidays.filter((h) => {
+      const holidayDate = parseISO(h.date);
+      return isWithinInterval(holidayDate, { start: startDate, end: endDate });
+    });
+  }, [startDate, endDate, holidays]);
 
   const handleSubmit = () => {
     if (!startDate || !endDate || hasInsufficientBalance) return;
@@ -199,6 +213,19 @@ export function LeaveRequestDialog({
                 </span>
               )}
             </div>
+          )}
+
+          {/* Holiday Overlap Warning */}
+          {overlappingHolidays.length > 0 && (
+            <Alert className="border-yellow-500/50 bg-yellow-500/10">
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              <AlertTitle className="text-yellow-700 dark:text-yellow-400">Holiday Overlap</AlertTitle>
+              <AlertDescription className="text-yellow-700/80 dark:text-yellow-400/80">
+                Your request includes {overlappingHolidays.length} company holiday(s):{' '}
+                {overlappingHolidays.map((h) => h.name).join(', ')}. 
+                You may want to exclude these dates.
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Reason */}

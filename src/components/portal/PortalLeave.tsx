@@ -153,6 +153,7 @@ export function PortalLeave({ employee }: PortalLeaveProps) {
         onOpenChange={setShowRequestDialog}
         employee={employee}
         availableLeave={availableLeave}
+        companyId={employee.company_id}
       />
     </div>
   );
