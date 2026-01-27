@@ -13,7 +13,8 @@ import {
   Users,
   Truck,
   UserCheck,
-  Receipt
+  Receipt,
+  UserCircle
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,6 +48,7 @@ const mainItems = [
   { title: 'Companies', url: '/companies', icon: Building2 },
   { title: 'Suppliers', url: '/suppliers', icon: Truck },
   { title: 'Employees', url: '/employees', icon: UserCheck },
+  { title: 'My Portal', url: '/portal', icon: UserCircle },
 ];
 
 const analyticsItems = [
