@@ -127,8 +127,12 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="hr_manager">HR Manager</SelectItem>
+                      <SelectItem value="manager">Manager</SelectItem>
+                      <SelectItem value="supervisor">Supervisor</SelectItem>
                       <SelectItem value="accountant">Accountant</SelectItem>
                       <SelectItem value="viewer">Viewer</SelectItem>
+                      <SelectItem value="employee">Employee</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button

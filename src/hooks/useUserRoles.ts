@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
-export type AppRole = 'owner' | 'admin' | 'accountant' | 'viewer' | 'employee';
+export type AppRole = 'owner' | 'admin' | 'hr_manager' | 'manager' | 'supervisor' | 'accountant' | 'viewer' | 'employee';
 
 export interface UserRole {
   id: string;
@@ -22,8 +22,11 @@ export interface TeamMember {
 }
 
 const PERMISSIONS = {
-  owner: ['manage_users', 'manage_settings', 'manage_companies', 'edit_data', 'view_data', 'delete_data', 'view_own_data', 'apply_leave'],
-  admin: ['manage_settings', 'manage_companies', 'edit_data', 'view_data', 'delete_data', 'view_own_data', 'apply_leave'],
+  owner: ['manage_users', 'manage_settings', 'manage_companies', 'manage_employees', 'manage_payroll', 'approve_leave', 'edit_data', 'view_data', 'view_team_data', 'delete_data', 'view_own_data', 'apply_leave'],
+  admin: ['manage_settings', 'manage_companies', 'manage_employees', 'manage_payroll', 'approve_leave', 'edit_data', 'view_data', 'view_team_data', 'delete_data', 'view_own_data', 'apply_leave'],
+  hr_manager: ['manage_employees', 'manage_payroll', 'approve_leave', 'edit_data', 'view_data', 'view_team_data', 'view_own_data', 'apply_leave'],
+  manager: ['approve_leave', 'view_data', 'view_team_data', 'view_own_data', 'apply_leave'],
+  supervisor: ['approve_leave', 'view_team_data', 'view_own_data', 'apply_leave'],
   accountant: ['edit_data', 'view_data', 'view_own_data', 'apply_leave'],
   viewer: ['view_data', 'view_own_data'],
   employee: ['view_own_data', 'apply_leave'],
