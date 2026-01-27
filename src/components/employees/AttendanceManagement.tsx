@@ -68,7 +68,7 @@ export function AttendanceManagement() {
     };
 
     fetchAttendance();
-  }, [selectedCompanyId, selectedDate, activeEmployees, getCompanyAttendanceByDate]);
+  }, [selectedCompanyId, selectedDate, activeEmployees.length, getCompanyAttendanceByDate]);
 
   const filteredData = attendanceData.filter(item =>
     item.employee.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
