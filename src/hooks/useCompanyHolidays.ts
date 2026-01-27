@@ -67,6 +67,32 @@ export function useCompanyHolidays(companyId?: string) {
     },
   });
 
+  const createBulkHolidays = useMutation({
+    mutationFn: async (holidays: CreateHolidayData[]) => {
+      if (!user) throw new Error('Not authenticated');
+
+      const dataWithCreator = holidays.map(h => ({
+        ...h,
+        created_by: user.id,
+      }));
+
+      const { data, error } = await supabase
+        .from('company_holidays')
+        .insert(dataWithCreator)
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['company-holidays'] });
+      toast({ title: `${data.length} holidays imported successfully` });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error importing holidays', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const updateHoliday = useMutation({
     mutationFn: async ({ id, ...data }: Partial<CompanyHoliday> & { id: string }) => {
       const { error } = await supabase
@@ -113,6 +139,7 @@ export function useCompanyHolidays(companyId?: string) {
     pastHolidays,
     isLoading,
     createHoliday,
+    createBulkHolidays,
     updateHoliday,
     deleteHoliday,
   };

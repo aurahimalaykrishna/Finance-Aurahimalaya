@@ -26,6 +26,8 @@ import Invoices from "./pages/Invoices";
 import Customers from "./pages/Customers";
 import EmployeePortal from "./pages/EmployeePortal";
 import RolePermissions from "./pages/RolePermissions";
+import Holidays from "./pages/Holidays";
+import LeaveRequests from "./pages/LeaveRequests";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +67,8 @@ function AppRoutes() {
             <Route path="/company/:id" element={<CompanyProfile />} />
             <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/employees" element={<Employees />} />
+            <Route path="/holidays" element={<Holidays />} />
+            <Route path="/leave" element={<LeaveRequests />} />
             <Route path="/portal" element={<EmployeePortal />} />
             <Route path="/reconciliation" element={<Reconciliation />} />
             <Route path="/reports" element={<Reports />} />

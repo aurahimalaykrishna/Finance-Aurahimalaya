@@ -21,12 +21,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { useCompanyHolidays, CompanyHoliday, CreateHolidayData } from '@/hooks/useCompanyHolidays';
 import { useCompanyContext } from '@/contexts/CompanyContext';
 import { HolidayDialog } from './HolidayDialog';
 import { HolidayCalendar } from './HolidayCalendar';
-import { Plus, Calendar, List, Pencil, Trash2 } from 'lucide-react';
+import { ImportHolidaysDialog } from './ImportHolidaysDialog';
+import { NepalHolidaysPresets } from './NepalHolidaysPresets';
+import { NEPAL_HOLIDAYS_2082_83, NEPAL_HOLIDAYS_2083_84 } from '@/data/nepalHolidays';
+import { Plus, Calendar, List, Pencil, Trash2, ChevronDown, Upload, Flag } from 'lucide-react';
 
 export function HolidayManagement() {
   const { selectedCompany } = useCompanyContext();
@@ -38,6 +48,7 @@ export function HolidayManagement() {
     pastHolidays,
     isLoading,
     createHoliday,
+    createBulkHolidays,
     updateHoliday,
     deleteHoliday,
   } = useCompanyHolidays(companyId);
@@ -45,6 +56,8 @@ export function HolidayManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState<CompanyHoliday | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [importCsvOpen, setImportCsvOpen] = useState(false);
+  const [nepalPreset, setNepalPreset] = useState<'2082/83' | '2083/84' | null>(null);
 
   const handleSave = async (data: CreateHolidayData | { id: string; name: string; date: string; description?: string }) => {
     if ('id' in data) {
@@ -67,13 +80,17 @@ export function HolidayManagement() {
     }
   };
 
-  const handleCalendarDateClick = (date: Date, existingHoliday?: CompanyHoliday) => {
+  const handleCalendarDateClick = (_date: Date, existingHoliday?: CompanyHoliday) => {
     if (existingHoliday) {
       handleEdit(existingHoliday);
     } else {
       setEditingHoliday(null);
       setDialogOpen(true);
     }
+  };
+
+  const handleBulkImport = async (holidaysData: CreateHolidayData[]) => {
+    await createBulkHolidays.mutateAsync(holidaysData);
   };
 
   const getStatusBadge = (dateStr: string) => {
@@ -169,10 +186,37 @@ export function HolidayManagement() {
               Manage statutory and company holidays for {selectedCompany?.name}
             </CardDescription>
           </div>
-          <Button onClick={() => { setEditingHoliday(null); setDialogOpen(true); }}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Holiday
-          </Button>
+          <div className="flex gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Holiday
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => { setEditingHoliday(null); setDialogOpen(true); }}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Single Holiday
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setImportCsvOpen(true)}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import from CSV
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setNepalPreset('2082/83')}>
+                  <Flag className="mr-2 h-4 w-4" />
+                  Nepal 2082/83 ({NEPAL_HOLIDAYS_2082_83.length})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setNepalPreset('2083/84')}>
+                  <Flag className="mr-2 h-4 w-4" />
+                  Nepal 2083/84 ({NEPAL_HOLIDAYS_2083_84.length})
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="upcoming">
@@ -219,6 +263,28 @@ export function HolidayManagement() {
         onSave={handleSave}
         isLoading={createHoliday.isPending || updateHoliday.isPending}
       />
+
+      <ImportHolidaysDialog
+        open={importCsvOpen}
+        onOpenChange={setImportCsvOpen}
+        companyId={companyId}
+        existingHolidays={holidays}
+        onImport={handleBulkImport}
+        isLoading={createBulkHolidays.isPending}
+      />
+
+      {nepalPreset && (
+        <NepalHolidaysPresets
+          open={!!nepalPreset}
+          onOpenChange={(open) => !open && setNepalPreset(null)}
+          companyId={companyId}
+          presetName={nepalPreset}
+          holidays={nepalPreset === '2082/83' ? NEPAL_HOLIDAYS_2082_83 : NEPAL_HOLIDAYS_2083_84}
+          existingHolidays={holidays}
+          onImport={handleBulkImport}
+          isLoading={createBulkHolidays.isPending}
+        />
+      )}
 
       <AlertDialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
         <AlertDialogContent>
