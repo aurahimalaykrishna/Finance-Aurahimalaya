@@ -3,7 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompanyContext } from '@/contexts/CompanyContext';
 import { useToast } from '@/hooks/use-toast';
-import { calculateProbationEndDate, DEFAULT_PROBATION_MONTHS } from '@/lib/nepal-hr-calculations';
+import { 
+  calculateProbationEndDate, 
+  DEFAULT_PROBATION_MONTHS,
+  getSalaryTypeForEmployment,
+  calculateMonthlyFromDaily,
+  calculateMonthlyFromHourly,
+  SalaryType,
+  EmploymentType
+} from '@/lib/nepal-hr-calculations';
 
 export interface Employee {
   id: string;
@@ -17,7 +25,7 @@ export interface Employee {
   pan_number: string | null;
   marital_status: 'single' | 'married';
   employee_code: string | null;
-  employment_type: 'regular' | 'work_based' | 'time_bound' | 'casual' | 'part_time';
+  employment_type: EmploymentType;
   date_of_join: string;
   probation_end_date: string | null;
   department: string | null;
@@ -25,6 +33,8 @@ export interface Employee {
   ssf_number: string | null;
   basic_salary: number;
   dearness_allowance: number;
+  salary_type: SalaryType;
+  hourly_rate: number;
   is_active: boolean;
   termination_date: string | null;
   created_at: string;
@@ -40,7 +50,7 @@ export interface CreateEmployeeData {
   pan_number?: string | null;
   marital_status: 'single' | 'married';
   employee_code?: string | null;
-  employment_type: 'regular' | 'work_based' | 'time_bound' | 'casual' | 'part_time';
+  employment_type: EmploymentType;
   date_of_join: string;
   probation_months?: number;
   department?: string | null;
@@ -48,6 +58,8 @@ export interface CreateEmployeeData {
   ssf_number?: string | null;
   basic_salary: number;
   dearness_allowance?: number;
+  salary_type?: SalaryType;
+  hourly_rate?: number;
 }
 
 export function useEmployees() {
@@ -89,6 +101,19 @@ export function useEmployees() {
         data.probation_months ?? DEFAULT_PROBATION_MONTHS
       );
 
+      // Determine salary type based on employment type
+      const salaryType = data.salary_type ?? getSalaryTypeForEmployment(data.employment_type);
+      
+      // Calculate monthly equivalent based on salary type
+      let basicSalary = data.basic_salary;
+      const hourlyRate = data.hourly_rate ?? 0;
+      
+      if (salaryType === 'daily' && hourlyRate > 0) {
+        basicSalary = calculateMonthlyFromDaily(hourlyRate);
+      } else if (salaryType === 'hourly' && hourlyRate > 0) {
+        basicSalary = calculateMonthlyFromHourly(hourlyRate);
+      }
+
       const { data: newEmployee, error } = await supabase
         .from('employees')
         .insert({
@@ -108,8 +133,10 @@ export function useEmployees() {
           department: data.department,
           designation: data.designation,
           ssf_number: data.ssf_number,
-          basic_salary: data.basic_salary,
+          basic_salary: basicSalary,
           dearness_allowance: data.dearness_allowance ?? 0,
+          salary_type: salaryType,
+          hourly_rate: hourlyRate,
         })
         .select()
         .single();
@@ -128,11 +155,11 @@ export function useEmployees() {
 
   const updateEmployee = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CreateEmployeeData> }) => {
+      const existingEmployee = employees.find(e => e.id === id);
       const updateData: Record<string, unknown> = { ...data };
       
       // Recalculate probation end if date_of_join or probation_months changed
       if (data.date_of_join || data.probation_months) {
-        const existingEmployee = employees.find(e => e.id === id);
         const joinDate = data.date_of_join || existingEmployee?.date_of_join;
         if (joinDate) {
           const probationEndDate = calculateProbationEndDate(
@@ -140,6 +167,25 @@ export function useEmployees() {
             data.probation_months ?? DEFAULT_PROBATION_MONTHS
           );
           updateData.probation_end_date = probationEndDate.toISOString().split('T')[0];
+        }
+      }
+
+      // Handle salary type and rate calculations
+      if (data.employment_type || data.salary_type || data.hourly_rate !== undefined) {
+        const employmentType = data.employment_type || existingEmployee?.employment_type || 'regular';
+        const salaryType = data.salary_type ?? getSalaryTypeForEmployment(employmentType as EmploymentType);
+        const hourlyRate = data.hourly_rate ?? existingEmployee?.hourly_rate ?? 0;
+        
+        updateData.salary_type = salaryType;
+        updateData.hourly_rate = hourlyRate;
+        
+        // Calculate monthly equivalent if hourly_rate is provided
+        if (hourlyRate > 0) {
+          if (salaryType === 'daily') {
+            updateData.basic_salary = calculateMonthlyFromDaily(hourlyRate);
+          } else if (salaryType === 'hourly') {
+            updateData.basic_salary = calculateMonthlyFromHourly(hourlyRate);
+          }
         }
       }
 

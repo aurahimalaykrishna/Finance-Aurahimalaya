@@ -12,6 +12,8 @@ import {
   isOnProbation,
   calculateSSFContributions,
   calculateIncomeTax,
+  getSalaryTypeLabel,
+  SALARY_TYPES,
 } from '@/lib/nepal-hr-calculations';
 import {
   User,
@@ -208,8 +210,38 @@ export function EmployeeProfile({
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-sm text-muted-foreground">Basic Salary</div>
+                  <div className="text-sm text-muted-foreground">Salary Type</div>
+                  <Badge variant="outline" className="mt-1">
+                    {getSalaryTypeLabel(employee.salary_type || 'monthly')}
+                  </Badge>
+                </div>
+                
+                {employee.salary_type === 'daily' && employee.hourly_rate > 0 && (
+                  <div>
+                    <div className="text-sm text-muted-foreground">Daily Rate</div>
+                    <div className="font-medium">{formatCurrency(employee.hourly_rate)}/day</div>
+                  </div>
+                )}
+                
+                {employee.salary_type === 'hourly' && employee.hourly_rate > 0 && (
+                  <div>
+                    <div className="text-sm text-muted-foreground">Hourly Rate</div>
+                    <div className="font-medium">{formatCurrency(employee.hourly_rate)}/hour</div>
+                  </div>
+                )}
+
+                <div>
+                  <div className="text-sm text-muted-foreground">
+                    {employee.salary_type === 'monthly' ? 'Basic Salary' : 'Monthly Equivalent'}
+                  </div>
                   <div className="font-medium text-lg">{formatCurrency(employee.basic_salary)}</div>
+                  {employee.salary_type !== 'monthly' && employee.hourly_rate > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {employee.salary_type === 'daily' 
+                        ? `${formatCurrency(employee.hourly_rate)} × 26 days`
+                        : `${formatCurrency(employee.hourly_rate)} × 208 hours`}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Dearness Allowance</div>
