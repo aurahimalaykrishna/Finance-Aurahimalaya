@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   getCurrentFiscalYear,
   calculateHomeLeaveAccrual,
@@ -10,7 +11,7 @@ import {
   MOURNING_LEAVE_DAYS,
   MATERNITY_PAID_DAYS,
 } from '@/lib/nepal-hr-calculations';
-import { differenceInMonths, differenceInDays } from 'date-fns';
+import { differenceInMonths, differenceInDays, eachDayOfInterval, format } from 'date-fns';
 
 export interface LeaveBalance {
   id: string;
@@ -53,6 +54,7 @@ export interface CreateLeaveRequestData {
 }
 
 export function useEmployeeLeaves(employeeId?: string) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const fiscalYear = getCurrentFiscalYear();
@@ -200,7 +202,7 @@ export function useEmployeeLeaves(employeeId?: string) {
 
       if (updateError) throw updateError;
 
-      // If approved, update leave balance
+      // If approved, update leave balance and create attendance records
       if (status === 'approved' && request) {
         const leaveType = request.leave_type;
         const daysUsed = request.days_requested;
@@ -225,12 +227,44 @@ export function useEmployeeLeaves(employeeId?: string) {
           .eq('id', balance.id);
 
         if (updateBalanceError) throw updateBalanceError;
+
+        // Create attendance records for leave days
+        if (user) {
+          const start = new Date(request.start_date);
+          const end = new Date(request.end_date);
+          const dates = eachDayOfInterval({ start, end });
+
+          const attendanceRecords = dates.map(date => ({
+            employee_id: request.employee_id,
+            date: format(date, 'yyyy-MM-dd'),
+            status: 'leave' as const,
+            leave_request_id: requestId,
+            working_hours: 0,
+            overtime_hours: 0,
+            created_by: user.id,
+          }));
+
+          const { error: attendanceError } = await supabase
+            .from('attendance_logs')
+            .upsert(attendanceRecords, { onConflict: 'employee_id,date' });
+
+          if (attendanceError) {
+            console.error('Error creating attendance records for leave:', attendanceError);
+            // Don't throw - leave approval succeeded, attendance sync is secondary
+          }
+        }
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['employee-leave-balance'] });
-      toast({ title: 'Leave request updated' });
+      queryClient.invalidateQueries({ queryKey: ['attendance-today'] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-monthly'] });
+      toast({ 
+        title: variables.status === 'approved' 
+          ? 'Leave approved and attendance records created' 
+          : 'Leave request updated' 
+      });
     },
     onError: (error: Error) => {
       toast({ title: 'Error updating leave request', description: error.message, variant: 'destructive' });
