@@ -9,9 +9,10 @@ import { CompanyTeam } from '@/components/company/profile/CompanyTeam';
 import { CompanyTransactions } from '@/components/company/profile/CompanyTransactions';
 import { CompanyBankAccounts } from '@/components/company/profile/CompanyBankAccounts';
 import { CompanyCategories } from '@/components/company/profile/CompanyCategories';
+import { CompanyHRSettings } from '@/components/company/profile/CompanyHRSettings';
 import { CompanyDialog } from '@/components/company/CompanyDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { Building2, Users, Receipt, CreditCard, FolderOpen } from 'lucide-react';
+import { Building2, Users, Receipt, CreditCard, FolderOpen, Settings } from 'lucide-react';
 
 export default function CompanyProfile() {
   const { id } = useParams<{ id: string }>();
@@ -74,7 +75,7 @@ export default function CompanyProfile() {
       />
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
           <TabsTrigger value="overview" className="gap-2">
             <Building2 className="h-4 w-4 hidden sm:inline" />
             Overview
@@ -94,6 +95,10 @@ export default function CompanyProfile() {
           <TabsTrigger value="categories" className="gap-2">
             <FolderOpen className="h-4 w-4 hidden sm:inline" />
             Categories
+          </TabsTrigger>
+          <TabsTrigger value="hr-settings" className="gap-2">
+            <Settings className="h-4 w-4 hidden sm:inline" />
+            HR Settings
           </TabsTrigger>
         </TabsList>
 
@@ -119,6 +124,10 @@ export default function CompanyProfile() {
 
         <TabsContent value="categories">
           <CompanyCategories companyId={company.id} />
+        </TabsContent>
+
+        <TabsContent value="hr-settings">
+          <CompanyHRSettings companyId={company.id} />
         </TabsContent>
       </Tabs>
 
