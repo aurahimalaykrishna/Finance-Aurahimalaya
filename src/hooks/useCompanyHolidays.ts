@@ -76,17 +76,40 @@ export function useCompanyHolidays(companyId?: string) {
         created_by: user.id,
       }));
 
-      const { data, error } = await supabase
-        .from('company_holidays')
-        .insert(dataWithCreator)
-        .select();
+      // Insert holidays one by one to skip duplicates gracefully
+      const results: CompanyHoliday[] = [];
+      const skipped: string[] = [];
 
-      if (error) throw error;
-      return data;
+      for (const holiday of dataWithCreator) {
+        const { data, error } = await supabase
+          .from('company_holidays')
+          .insert(holiday)
+          .select()
+          .maybeSingle();
+
+        if (error) {
+          // If it's a duplicate key error, skip it
+          if (error.code === '23505') {
+            skipped.push(holiday.name);
+            continue;
+          }
+          throw error;
+        }
+        if (data) results.push(data);
+      }
+
+      return { inserted: results, skipped };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['company-holidays'] });
-      toast({ title: `${data.length} holidays imported successfully` });
+      if (data.skipped.length > 0) {
+        toast({ 
+          title: `${data.inserted.length} holidays imported`,
+          description: `${data.skipped.length} duplicates were skipped`,
+        });
+      } else {
+        toast({ title: `${data.inserted.length} holidays imported successfully` });
+      }
     },
     onError: (error: Error) => {
       toast({ title: 'Error importing holidays', description: error.message, variant: 'destructive' });
