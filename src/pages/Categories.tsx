@@ -28,7 +28,7 @@ export default function Categories() {
     hasSubCategories,
     getCategoryDepth,
     canHaveSubCategories,
-  } = useCategories();
+  } = useCategories(selectedCompanyId, selectedCompanyId);
   
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
