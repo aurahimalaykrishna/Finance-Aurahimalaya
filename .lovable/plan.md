@@ -1,66 +1,117 @@
 
-
-# Plan: Fix Currency Mismatch for Aurahimalaya LLC Transactions
+# Plan: Fix Category Visibility Across Team Members
 
 ## Problem Identified
 
-After investigating the database, I found that **Aurahimalaya LLC** has its company currency correctly set to **USD**, but all **425 transactions** for this company have `currency: NPR` stored in the database.
+When one user (Ishan - accountant) assigns a category to a transaction, the category name does not show for other users (Krishna - owner) on the dashboard/transaction list.
 
-This is legacy data that was created before proper currency handling was implemented. The code is working correctly - it displays the transaction's own currency field, which happens to be NPR for all these historical transactions.
+### Root Cause Analysis
 
----
+1. **Categories are being created with `company_id = NULL`**
+   - When Ishan creates categories, they're saved as "personal" categories (not company-scoped)
+   - Most categories in the database have `company_id = NULL`
 
-## Database Evidence
+2. **RLS Policy Restriction**
+   - The current RLS policy for categories:
+     - Categories WITH `company_id` are visible to anyone with company access
+     - Categories WITHOUT `company_id` (NULL) are ONLY visible to the user who created them
+   
+3. **Transaction Display Issue**
+   - When Krishna views transactions, the Supabase query does a LEFT JOIN to categories
+   - RLS blocks Krishna from seeing Ishan's personal categories
+   - The category_id is stored in the transaction, but the joined category data returns NULL
+   - Result: Krishna sees the transaction but the category appears empty/unassigned
 
-| Company | Company Currency | Transaction Count | Transaction Currency |
-|---------|-----------------|-------------------|---------------------|
-| Aurahimalaya LLC | USD | 425 | NPR (incorrect) |
-| Aurahimalaya Pvt Ltd | NPR | Many | NPR (correct) |
+### Database Evidence
+
+| User | Role | Categories Created | company_id |
+|------|------|-------------------|------------|
+| ishan@aurahimalaya.org | Accountant | "Premium software", "COGS", etc. | NULL |
+| krishna@aurahimalaya.org | Owner | "Operating Cost" | Has company_id |
 
 ---
 
 ## Solution
 
-We need to update the existing transactions in the database to use the correct currency based on their company's currency setting.
+We need to fix this at two levels:
 
-### SQL Migration
+### Part 1: Database Fix - Update Existing Categories
 
-Run an UPDATE query to fix the mismatched transaction currencies:
+Update all existing personal categories (where `company_id` is NULL) to be associated with a company so they become visible to all team members.
 
-```sql
--- Update transactions to use their company's currency
-UPDATE transactions t
-SET currency = c.currency
-FROM companies c
-WHERE t.company_id = c.id
-  AND t.currency != c.currency;
-```
-
-This will:
-1. Find all transactions where the transaction currency differs from the company currency
-2. Update those transactions to use the company's currency
-
-### Specific Fix for Aurahimalaya LLC
-
-If you prefer to only fix this specific company:
+Since Ishan has access to multiple companies, we'll need to update categories based on the transactions they're used in, or set a default company for global categories.
 
 ```sql
-UPDATE transactions
-SET currency = 'USD'
-WHERE company_id = '0456e3e1-b5e5-4c35-95b1-82aa16eddc5c'
-  AND currency = 'NPR';
+-- Option A: Update categories to be shared across ALL companies
+-- by setting them to the most commonly used company
+UPDATE categories c
+SET company_id = (
+  SELECT t.company_id 
+  FROM transactions t 
+  WHERE t.category_id = c.id 
+  AND t.company_id IS NOT NULL
+  GROUP BY t.company_id 
+  ORDER BY COUNT(*) DESC 
+  LIMIT 1
+)
+WHERE c.company_id IS NULL
+AND EXISTS (
+  SELECT 1 FROM transactions t WHERE t.category_id = c.id
+);
 ```
+
+### Part 2: Code Fix - Auto-assign Company to New Categories
+
+Modify the category creation to automatically use the selected company ID from context.
+
+**File: `src/hooks/useCategories.ts`**
+
+```typescript
+// In createCategory mutation:
+const { error } = await supabase.from('categories').insert({
+  ...data,
+  // Use provided company_id, fallback to selected company from context
+  company_id: data.company_id || selectedCompanyId || null,
+  user_id: user!.id,
+} as any);
+```
+
+### Part 3: Pass Company Context to useCategories
+
+Update the hook to accept and use the company context for new category creation.
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/hooks/useCategories.ts` | Ensure new categories get company_id from context |
+| `src/pages/Categories.tsx` | Pass selectedCompanyId to create mutation |
 
 ---
 
 ## Implementation Steps
 
-1. **Run the database migration** to fix historical transaction currencies
-2. No code changes required - the UI correctly displays transaction currencies
+### Step 1: Database Migration
+Run SQL to update existing categories with NULL company_id to have proper company associations based on their usage in transactions.
+
+### Step 2: Update useCategories Hook
+Modify the `createCategory` mutation to automatically set `company_id` from the selected company context when creating new categories.
+
+### Step 3: Verify UI Changes
+Ensure the Categories page passes the correct company context when creating/editing categories.
 
 ---
 
 ## Summary
 
-The issue is **data-related, not code-related**. Historical transactions were created with NPR as the default currency before proper currency handling was implemented. Running the SQL migration will update all 425 transactions for Aurahimalaya LLC from NPR to USD.
+| Issue | Root Cause | Fix |
+|-------|-----------|-----|
+| Categories not visible to other users | RLS blocks NULL company_id categories | Update existing categories to have company_id |
+| New categories will have same issue | No auto-company assignment | Auto-set company_id from context |
 
+This fix ensures:
+1. All team members can see shared categories
+2. New categories are automatically scoped to the current company
+3. Category assignments on transactions are visible across all dashboards
