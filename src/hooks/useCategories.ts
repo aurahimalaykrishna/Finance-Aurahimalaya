@@ -24,7 +24,7 @@ export interface CreateCategoryData {
   parent_id?: string | null;
 }
 
-export function useCategories(companyId?: string | null) {
+export function useCategories(companyId?: string | null, defaultCompanyIdForCreate?: string | null) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -118,9 +118,12 @@ export function useCategories(companyId?: string | null) {
 
   const createCategory = useMutation({
     mutationFn: async (data: CreateCategoryData) => {
+      // Use explicit company_id if provided, fallback to default context, then null
+      const resolvedCompanyId = data.company_id !== undefined ? data.company_id : (defaultCompanyIdForCreate || null);
+      
       const { error } = await supabase.from('categories').insert({
         ...data,
-        company_id: data.company_id || null,
+        company_id: resolvedCompanyId,
         user_id: user!.id,
       } as any);
       if (error) throw error;
