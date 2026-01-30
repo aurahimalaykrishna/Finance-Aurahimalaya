@@ -1,52 +1,73 @@
 
-# Plan: Fix Customer Dropdown Selection in Invoice Dialog
+# Plan: Make Amount Column Editable in Invoice Items
 
-## Problem Identified
+## Problem
 
-The customer dropdown (combobox) inside the Invoice creation dialog closes immediately when trying to select a customer. This is a known focus management conflict between:
-- The `Dialog` component (manages focus for accessibility)
-- The `Popover` component (also manages focus by default)
-- The `Command` input (handles keyboard navigation)
+The Amount column in the invoice items table is currently read-only and auto-calculated. The user wants to manually enter the amount directly, with the amount being independent (not derived from Unit Price/Qty/Tax calculations).
 
-When the Popover opens inside a Dialog, focus events conflict and cause the popover to close prematurely.
+## Root Cause Analysis
 
----
+In `InvoiceItemsEditor.tsx`, the Amount column displays only the calculated value:
+```tsx
+<TableCell className="text-right font-medium">
+  {currency} {formatCurrency(item.amount)}
+</TableCell>
+```
+
+This is a static display cell, not an editable Input. All other fields (Description, Qty, Unit Price, Tax %) are Input components, but Amount is not.
 
 ## Solution
 
-Add `modal={false}` to the Popover component in `CustomerSelect.tsx`. This tells the Popover not to manage focus independently, deferring to the parent Dialog's focus management.
+Convert the Amount column from a read-only display to an editable Input field, similar to the other columns. When the user edits Amount directly, it will be stored as-is without any automatic recalculation.
 
----
+## Technical Implementation
 
-## Technical Details
+### File: `src/components/invoices/InvoiceItemsEditor.tsx`
 
-### File to Modify
+**Change 1: Update the Amount cell to use an Input component**
 
-**`src/components/invoices/CustomerSelect.tsx`**
-
-### Change Required
-
+Replace the static text display (lines 131-133):
 ```tsx
-// Before (line 41)
-<Popover open={open} onOpenChange={setOpen}>
-
-// After
-<Popover open={open} onOpenChange={setOpen} modal={false}>
+<TableCell className="text-right font-medium">
+  {currency} {formatCurrency(item.amount)}
+</TableCell>
 ```
 
-### Why This Works
+With an editable input:
+```tsx
+<TableCell>
+  <div className="flex items-center justify-end gap-1">
+    <span className="text-sm text-muted-foreground">{currency}</span>
+    <Input
+      type="number"
+      value={item.amount}
+      onChange={(e) => updateItem(index, 'amount', e.target.value)}
+      min="0"
+      step="0.01"
+      className="border-0 focus-visible:ring-0 p-0 h-auto w-24 text-right font-medium pointer-events-auto"
+    />
+  </div>
+</TableCell>
+```
 
-- When `modal={true}` (default), the Popover creates a focus trap and blocks interaction outside
-- The Dialog also creates a focus trap
-- These two focus traps conflict, causing the popover to close when focus changes
-- Setting `modal={false}` tells the Popover to behave as a non-modal component, allowing the Dialog to remain in control of focus
+**Change 2: Remove auto-calculation override in updateItem function**
 
----
+Currently, `updateItem` recalculates `amount` whenever `quantity`, `unit_price`, or `tax_rate` changes. Since the user wants Amount to be independent, we have two options:
 
-## Implementation Summary
+**Option A (Recommended)**: Keep auto-calculation for other fields, but allow direct Amount edits to override
+- When user edits Qty/Price/Tax, Amount auto-calculates
+- When user edits Amount directly, it stores that value without recalculation
 
-| File | Change |
-|------|--------|
-| `src/components/invoices/CustomerSelect.tsx` | Add `modal={false}` to the Popover component |
+This is already how the code works - the recalculation only triggers for specific fields. Adding Amount as an editable field means manual entry will persist.
 
-This is a single-line fix that resolves the focus conflict between the Dialog and Popover components.
+## Summary of Changes
+
+| Location | Change |
+|----------|--------|
+| `InvoiceItemsEditor.tsx` (lines 131-133) | Replace static Amount display with editable Input component |
+
+This single change will:
+1. Make the Amount field clickable and editable
+2. Allow users to type any amount value directly
+3. Use the same `pointer-events-auto` fix as other inputs for modal compatibility
+4. Keep the auto-calculation behavior when editing other fields (Qty, Unit Price, Tax)
