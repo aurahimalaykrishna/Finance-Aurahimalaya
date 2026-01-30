@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCompanyContext } from '@/contexts/CompanyContext';
@@ -104,7 +105,7 @@ export function useInvoices() {
     enabled: !!user && !!selectedCompanyId,
   });
 
-  const getInvoiceWithItems = async (invoiceId: string): Promise<Invoice | null> => {
+  const getInvoiceWithItems = useCallback(async (invoiceId: string): Promise<Invoice | null> => {
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
       .select(`
@@ -125,7 +126,7 @@ export function useInvoices() {
     if (itemsError) throw itemsError;
 
     return { ...invoice, invoice_items: items } as Invoice;
-  };
+  }, []);
 
   const generateInvoiceNumber = async (): Promise<string> => {
     if (!selectedCompanyId) throw new Error('No company selected');
