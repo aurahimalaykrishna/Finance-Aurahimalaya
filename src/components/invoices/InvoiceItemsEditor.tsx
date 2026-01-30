@@ -94,7 +94,7 @@ export function InvoiceItemsEditor({ items, onChange, currency = 'NPR' }: Invoic
                       value={item.description}
                       onChange={(e) => updateItem(index, 'description', e.target.value)}
                       placeholder="Item description"
-                      className="border-0 focus-visible:ring-0 p-0 h-auto"
+                      className="border-0 focus-visible:ring-0 p-0 h-auto pointer-events-auto"
                     />
                   </TableCell>
                   <TableCell>
@@ -104,7 +104,7 @@ export function InvoiceItemsEditor({ items, onChange, currency = 'NPR' }: Invoic
                       onChange={(e) => updateItem(index, 'quantity', e.target.value)}
                       min="0"
                       step="0.01"
-                      className="border-0 focus-visible:ring-0 p-0 h-auto w-16"
+                      className="border-0 focus-visible:ring-0 p-0 h-auto w-16 pointer-events-auto"
                     />
                   </TableCell>
                   <TableCell>
@@ -114,7 +114,7 @@ export function InvoiceItemsEditor({ items, onChange, currency = 'NPR' }: Invoic
                       onChange={(e) => updateItem(index, 'unit_price', e.target.value)}
                       min="0"
                       step="0.01"
-                      className="border-0 focus-visible:ring-0 p-0 h-auto w-24"
+                      className="border-0 focus-visible:ring-0 p-0 h-auto w-24 pointer-events-auto"
                     />
                   </TableCell>
                   <TableCell>
@@ -125,7 +125,7 @@ export function InvoiceItemsEditor({ items, onChange, currency = 'NPR' }: Invoic
                       min="0"
                       max="100"
                       step="0.01"
-                      className="border-0 focus-visible:ring-0 p-0 h-auto w-16"
+                      className="border-0 focus-visible:ring-0 p-0 h-auto w-16 pointer-events-auto"
                     />
                   </TableCell>
                   <TableCell className="text-right font-medium">
