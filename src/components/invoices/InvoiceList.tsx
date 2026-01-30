@@ -48,6 +48,7 @@ import {
   DollarSign,
   Clock,
   AlertCircle,
+  Download,
 } from 'lucide-react';
 import { useInvoices, Invoice, InvoiceStatus } from '@/hooks/useInvoices';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
@@ -68,6 +69,13 @@ export function InvoiceList({ onCreateNew }: InvoiceListProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+
+  const handleDownload = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+    setPreviewOpen(true);
+    // Print dialog will be triggered from InvoicePreview
+    setTimeout(() => window.print(), 500);
+  };
 
   const filteredInvoices = invoices.filter((invoice) => {
     const matchesSearch =
@@ -262,6 +270,10 @@ export function InvoiceList({ onCreateNew }: InvoiceListProps) {
                         >
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownload(invoice)}>
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {invoice.status === 'draft' && (

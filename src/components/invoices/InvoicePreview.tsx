@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import {
   Dialog,
@@ -6,7 +6,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Download, Printer } from 'lucide-react';
 import { useInvoices, Invoice } from '@/hooks/useInvoices';
 import { useCompanyContext } from '@/contexts/CompanyContext';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
@@ -22,6 +24,7 @@ export function InvoicePreview({ open, onOpenChange, invoice }: InvoicePreviewPr
   const { selectedCompany } = useCompanyContext();
   const [fullInvoice, setFullInvoice] = useState<Invoice | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadInvoice = async () => {
@@ -48,15 +51,29 @@ export function InvoicePreview({ open, onOpenChange, invoice }: InvoicePreviewPr
     }).format(amount)}`;
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   if (!invoice) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader className="no-print">
           <DialogTitle className="flex items-center justify-between">
             <span>Invoice {invoice.invoice_number}</span>
-            <InvoiceStatusBadge status={invoice.status} />
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handlePrint} disabled={isLoading || !fullInvoice}>
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+              <Button variant="outline" size="sm" onClick={handlePrint} disabled={isLoading || !fullInvoice}>
+                <Printer className="h-4 w-4 mr-2" />
+                Print
+              </Button>
+              <InvoiceStatusBadge status={invoice.status} />
+            </div>
           </DialogTitle>
         </DialogHeader>
 
@@ -65,7 +82,7 @@ export function InvoicePreview({ open, onOpenChange, invoice }: InvoicePreviewPr
             <div className="animate-pulse text-muted-foreground">Loading invoice...</div>
           </div>
         ) : fullInvoice ? (
-          <div className="space-y-6 p-4 bg-card rounded-lg border">
+          <div ref={printRef} className="invoice-print-area space-y-6 p-4 bg-card rounded-lg border">
             {/* Header */}
             <div className="flex justify-between">
               <div>
