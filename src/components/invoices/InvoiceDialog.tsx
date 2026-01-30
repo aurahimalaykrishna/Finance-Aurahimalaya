@@ -239,7 +239,7 @@ export function InvoiceDialog({ open, onOpenChange, invoice }: InvoiceDialogProp
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Issue Date</FormLabel>
-                        <Popover>
+                        <Popover modal={false}>
                           <PopoverTrigger asChild>
                             <FormControl>
                               <Button
@@ -274,7 +274,7 @@ export function InvoiceDialog({ open, onOpenChange, invoice }: InvoiceDialogProp
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Due Date</FormLabel>
-                        <Popover>
+                        <Popover modal={false}>
                           <PopoverTrigger asChild>
                             <FormControl>
                               <Button
