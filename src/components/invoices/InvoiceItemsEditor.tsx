@@ -128,8 +128,18 @@ export function InvoiceItemsEditor({ items, onChange, currency = 'NPR' }: Invoic
                       className="border-0 focus-visible:ring-0 p-0 h-auto w-16 pointer-events-auto"
                     />
                   </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {currency} {formatCurrency(item.amount)}
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <span className="text-sm text-muted-foreground">{currency}</span>
+                      <Input
+                        type="number"
+                        value={item.amount}
+                        onChange={(e) => updateItem(index, 'amount', e.target.value)}
+                        min="0"
+                        step="0.01"
+                        className="border-0 focus-visible:ring-0 p-0 h-auto w-24 text-right font-medium pointer-events-auto"
+                      />
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Button
