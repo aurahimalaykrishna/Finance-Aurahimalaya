@@ -1,32 +1,52 @@
 
-# Plan: Fix Category Visibility Across Team Members - COMPLETED
+# Plan: Fix Customer Dropdown Selection in Invoice Dialog
 
-## Problem
-Categories created by one user weren't visible to other team members.
+## Problem Identified
 
-## Root Cause
-Categories were being saved with `company_id = NULL`, making them personal categories only visible to the creator due to RLS policies.
+The customer dropdown (combobox) inside the Invoice creation dialog closes immediately when trying to select a customer. This is a known focus management conflict between:
+- The `Dialog` component (manages focus for accessibility)
+- The `Popover` component (also manages focus by default)
+- The `Command` input (handles keyboard navigation)
 
-## Solution Applied
+When the Popover opens inside a Dialog, focus events conflict and cause the popover to close prematurely.
 
-### Step 1: Database Fix ✓
-Updated existing categories to associate with companies based on transaction usage:
-```sql
-UPDATE categories c
-SET company_id = (
-  SELECT t.company_id FROM transactions t 
-  WHERE t.category_id = c.id 
-  GROUP BY t.company_id ORDER BY COUNT(*) DESC LIMIT 1
-)
-WHERE c.company_id IS NULL
-AND EXISTS (SELECT 1 FROM transactions t WHERE t.category_id = c.id);
+---
+
+## Solution
+
+Add `modal={false}` to the Popover component in `CustomerSelect.tsx`. This tells the Popover not to manage focus independently, deferring to the parent Dialog's focus management.
+
+---
+
+## Technical Details
+
+### File to Modify
+
+**`src/components/invoices/CustomerSelect.tsx`**
+
+### Change Required
+
+```tsx
+// Before (line 41)
+<Popover open={open} onOpenChange={setOpen}>
+
+// After
+<Popover open={open} onOpenChange={setOpen} modal={false}>
 ```
 
-### Step 2: Code Fix ✓
-- Updated `useCategories` hook to accept a `defaultCompanyIdForCreate` parameter
-- Modified `Categories.tsx` to pass `selectedCompanyId` as the default for new categories
+### Why This Works
 
-## Result
-- All team members can now see shared categories
-- New categories are automatically scoped to the selected company
-- Category assignments on transactions are visible across all dashboards
+- When `modal={true}` (default), the Popover creates a focus trap and blocks interaction outside
+- The Dialog also creates a focus trap
+- These two focus traps conflict, causing the popover to close when focus changes
+- Setting `modal={false}` tells the Popover to behave as a non-modal component, allowing the Dialog to remain in control of focus
+
+---
+
+## Implementation Summary
+
+| File | Change |
+|------|--------|
+| `src/components/invoices/CustomerSelect.tsx` | Add `modal={false}` to the Popover component |
+
+This is a single-line fix that resolves the focus conflict between the Dialog and Popover components.
