@@ -82,61 +82,68 @@ export function InvoicePreview({ open, onOpenChange, invoice }: InvoicePreviewPr
             <div className="animate-pulse text-muted-foreground">Loading invoice...</div>
           </div>
         ) : fullInvoice ? (
-          <div ref={printRef} className="invoice-print-area space-y-6 p-4 bg-card rounded-lg border">
-            {/* Header */}
-            <div className="flex justify-between">
-              <div>
-                <h2 className="text-2xl font-bold">{selectedCompany?.name || 'Your Company'}</h2>
+          <div ref={printRef} className="invoice-print-area space-y-8 p-8 bg-white rounded-lg border print:border-0 print:shadow-none">
+            {/* Header with branding */}
+            <div className="flex justify-between items-start border-b-2 border-primary pb-6">
+              <div className="space-y-2">
+                {selectedCompany?.logo_url ? (
+                  <img 
+                    src={selectedCompany.logo_url} 
+                    alt={selectedCompany.name} 
+                    className="h-16 w-auto object-contain mb-2"
+                  />
+                ) : null}
+                <h2 className="text-2xl font-bold text-foreground">{selectedCompany?.name || 'Company Name'}</h2>
                 {selectedCompany?.address && (
-                  <p className="text-muted-foreground text-sm mt-1">{selectedCompany.address}</p>
+                  <p className="text-muted-foreground text-sm whitespace-pre-line">{selectedCompany.address}</p>
                 )}
               </div>
-              <div className="text-right">
-                <h3 className="text-xl font-semibold">INVOICE</h3>
-                <p className="text-lg text-primary">{fullInvoice.invoice_number}</p>
+              <div className="text-right space-y-1">
+                <h3 className="text-3xl font-bold text-primary tracking-tight">INVOICE</h3>
+                <p className="text-xl font-semibold text-foreground">{fullInvoice.invoice_number}</p>
+                <InvoiceStatusBadge status={fullInvoice.status} />
               </div>
             </div>
 
-            <Separator />
-
             {/* Customer and Dates */}
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-2">Bill To</h4>
+            <div className="grid grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Bill To</h4>
                 {fullInvoice.customer ? (
-                  <div>
-                    <p className="font-medium">{fullInvoice.customer.name}</p>
+                  <div className="space-y-1">
+                    <p className="font-semibold text-lg text-foreground">{fullInvoice.customer.name}</p>
+                    {fullInvoice.customer.address && (
+                      <p className="text-sm text-muted-foreground whitespace-pre-line">{fullInvoice.customer.address}</p>
+                    )}
                     {fullInvoice.customer.email && (
                       <p className="text-sm text-muted-foreground">{fullInvoice.customer.email}</p>
                     )}
                     {fullInvoice.customer.phone && (
                       <p className="text-sm text-muted-foreground">{fullInvoice.customer.phone}</p>
                     )}
-                    {fullInvoice.customer.address && (
-                      <p className="text-sm text-muted-foreground mt-1">{fullInvoice.customer.address}</p>
-                    )}
                     {fullInvoice.customer.tax_id && (
                       <p className="text-sm text-muted-foreground">Tax ID: {fullInvoice.customer.tax_id}</p>
                     )}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground">No customer assigned</p>
+                  <p className="text-muted-foreground italic">No customer assigned</p>
                 )}
               </div>
-              <div className="text-right">
-                <div className="space-y-1">
-                  <div className="flex justify-end gap-4">
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Invoice Details</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
                     <span className="text-muted-foreground">Issue Date:</span>
-                    <span className="font-medium">{format(new Date(fullInvoice.issue_date), 'MMM dd, yyyy')}</span>
+                    <span className="font-medium text-foreground">{format(new Date(fullInvoice.issue_date), 'MMM dd, yyyy')}</span>
                   </div>
-                  <div className="flex justify-end gap-4">
+                  <div className="flex justify-between">
                     <span className="text-muted-foreground">Due Date:</span>
-                    <span className="font-medium">{format(new Date(fullInvoice.due_date), 'MMM dd, yyyy')}</span>
+                    <span className="font-medium text-foreground">{format(new Date(fullInvoice.due_date), 'MMM dd, yyyy')}</span>
                   </div>
                   {fullInvoice.paid_at && (
-                    <div className="flex justify-end gap-4">
-                      <span className="text-muted-foreground">Paid:</span>
-                      <span className="font-medium text-green-500">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Paid On:</span>
+                      <span className="font-medium text-success">
                         {format(new Date(fullInvoice.paid_at), 'MMM dd, yyyy')}
                       </span>
                     </div>
@@ -145,30 +152,28 @@ export function InvoicePreview({ open, onOpenChange, invoice }: InvoicePreviewPr
               </div>
             </div>
 
-            <Separator />
-
-            {/* Line Items */}
-            <div>
+            {/* Line Items Table */}
+            <div className="border rounded-lg overflow-hidden">
               <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 text-sm font-medium text-muted-foreground">Description</th>
-                    <th className="text-right py-2 text-sm font-medium text-muted-foreground w-20">Qty</th>
-                    <th className="text-right py-2 text-sm font-medium text-muted-foreground w-28">Unit Price</th>
-                    <th className="text-right py-2 text-sm font-medium text-muted-foreground w-20">Tax</th>
-                    <th className="text-right py-2 text-sm font-medium text-muted-foreground w-28">Amount</th>
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</th>
+                    <th className="text-center py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-20">Qty</th>
+                    <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-28">Unit Price</th>
+                    <th className="text-center py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-20">Tax %</th>
+                    <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-32">Amount</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-border">
                   {fullInvoice.invoice_items?.map((item, index) => (
-                    <tr key={item.id || index} className="border-b">
-                      <td className="py-3">{item.description}</td>
-                      <td className="text-right py-3">{item.quantity}</td>
-                      <td className="text-right py-3">
+                    <tr key={item.id || index} className="hover:bg-muted/30">
+                      <td className="py-3 px-4 text-foreground">{item.description}</td>
+                      <td className="text-center py-3 px-4 text-foreground">{item.quantity}</td>
+                      <td className="text-right py-3 px-4 text-foreground">
                         {formatCurrency(Number(item.unit_price), fullInvoice.currency)}
                       </td>
-                      <td className="text-right py-3">{item.tax_rate}%</td>
-                      <td className="text-right py-3 font-medium">
+                      <td className="text-center py-3 px-4 text-foreground">{item.tax_rate}%</td>
+                      <td className="text-right py-3 px-4 font-medium text-foreground">
                         {formatCurrency(Number(item.amount), fullInvoice.currency)}
                       </td>
                     </tr>
@@ -179,14 +184,14 @@ export function InvoicePreview({ open, onOpenChange, invoice }: InvoicePreviewPr
 
             {/* Totals */}
             <div className="flex justify-end">
-              <div className="w-72 space-y-2">
+              <div className="w-80 space-y-2 bg-muted/30 rounded-lg p-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal:</span>
-                  <span>{formatCurrency(Number(fullInvoice.subtotal), fullInvoice.currency)}</span>
+                  <span className="text-foreground">{formatCurrency(Number(fullInvoice.subtotal), fullInvoice.currency)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tax:</span>
-                  <span>{formatCurrency(Number(fullInvoice.tax_amount), fullInvoice.currency)}</span>
+                  <span className="text-foreground">{formatCurrency(Number(fullInvoice.tax_amount), fullInvoice.currency)}</span>
                 </div>
                 {Number(fullInvoice.discount_amount) > 0 && (
                   <div className="flex justify-between text-sm">
@@ -196,34 +201,36 @@ export function InvoicePreview({ open, onOpenChange, invoice }: InvoicePreviewPr
                     </span>
                   </div>
                 )}
-                <Separator />
+                <Separator className="my-2" />
                 <div className="flex justify-between text-lg font-bold">
-                  <span>Total:</span>
-                  <span>{formatCurrency(Number(fullInvoice.total_amount), fullInvoice.currency)}</span>
+                  <span className="text-foreground">Total:</span>
+                  <span className="text-primary">{formatCurrency(Number(fullInvoice.total_amount), fullInvoice.currency)}</span>
                 </div>
               </div>
             </div>
 
             {/* Notes and Terms */}
             {(fullInvoice.notes || fullInvoice.terms) && (
-              <>
-                <Separator />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  {fullInvoice.notes && (
-                    <div>
-                      <h4 className="font-medium text-muted-foreground mb-1">Notes</h4>
-                      <p className="whitespace-pre-wrap">{fullInvoice.notes}</p>
-                    </div>
-                  )}
-                  {fullInvoice.terms && (
-                    <div>
-                      <h4 className="font-medium text-muted-foreground mb-1">Payment Terms</h4>
-                      <p className="whitespace-pre-wrap">{fullInvoice.terms}</p>
-                    </div>
-                  )}
-                </div>
-              </>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
+                {fullInvoice.notes && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notes</h4>
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{fullInvoice.notes}</p>
+                  </div>
+                )}
+                {fullInvoice.terms && (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment Terms</h4>
+                    <p className="text-sm text-foreground whitespace-pre-wrap">{fullInvoice.terms}</p>
+                  </div>
+                )}
+              </div>
             )}
+
+            {/* Footer */}
+            <div className="text-center pt-6 border-t text-xs text-muted-foreground">
+              <p>Thank you for your business!</p>
+            </div>
           </div>
         ) : null}
       </DialogContent>
