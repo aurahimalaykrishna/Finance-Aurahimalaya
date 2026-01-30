@@ -83,7 +83,7 @@ export function InvoiceDialog({ open, onOpenChange, invoice }: InvoiceDialogProp
     },
   });
 
-  // Load invoice data when editing
+  // Load invoice data when editing - only run when dialog opens or invoice changes
   useEffect(() => {
     const loadInvoice = async () => {
       if (invoice && open) {
@@ -130,7 +130,8 @@ export function InvoiceDialog({ open, onOpenChange, invoice }: InvoiceDialogProp
     };
 
     loadInvoice();
-  }, [invoice, open, form, selectedCompany, getInvoiceWithItems]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoice?.id, open]);
 
   // Calculate totals
   const totals = useMemo(() => {
