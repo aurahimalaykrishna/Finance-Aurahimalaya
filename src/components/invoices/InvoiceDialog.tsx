@@ -133,15 +133,23 @@ export function InvoiceDialog({ open, onOpenChange, invoice }: InvoiceDialogProp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoice?.id, open]);
 
-  // Calculate totals
+  // Calculate totals - use item.amount as source of truth
   const totals = useMemo(() => {
-    const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    // Use item.amount directly (includes tax already)
+    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+    
+    // Calculate the tax portion that's embedded in the amounts
     const taxAmount = items.reduce((sum, item) => {
-      const itemBase = item.quantity * item.unit_price;
-      return sum + (itemBase * (item.tax_rate / 100));
+      if (item.tax_rate > 0) {
+        const taxMultiplier = 1 + (item.tax_rate / 100);
+        const baseAmount = item.amount / taxMultiplier;
+        return sum + (item.amount - baseAmount);
+      }
+      return sum;
     }, 0);
+    
     const discountAmount = form.watch('discount_amount') || 0;
-    const totalAmount = subtotal + taxAmount - discountAmount;
+    const totalAmount = subtotal - discountAmount;
 
     return { subtotal, taxAmount, discountAmount, totalAmount };
   }, [items, form.watch('discount_amount')]);
